@@ -201,7 +201,7 @@
     <div class="section-title">Late CI / Early CO, business trips, shift changes &mdash; current week</div>
     <div class="grid grid-4" id="ops-kpis"></div>
     <div class="section-title">Trend</div>
-    <div class="grid grid-2" id="ops-trend"></div>
+    <div class="grid grid-3" id="ops-trend"></div>
 
     <div class="section-title">Late CI / Early CO requests &mdash; detail</div>
     <div class="card" id="ops-lcec-table"></div>
@@ -1077,16 +1077,18 @@ function renderAll(){
   opk.appendChild(kpiCard('Shift changes', last(s.sc_count), trendNote(last(s.sc_count), prev(s.sc_count), 'down'), s.sc_count, '#5F5E5A'));
   const opt = document.getElementById('ops-trend'); opt.innerHTML = '';
   trendCard(opt, 'Late CI / Early CO events', s.lc_ec_events, '#993C1D', 'chart-lcec', '', 'down');
-  trendCard(opt, 'Late check-ins (count)', s.late_ci_total, '#EF9F27', 'chart-ops-avgci', '', 'down');
-  trendCard(opt, 'Staying-late instances (count)', s.late_co_total, '#D14520', 'chart-ops-avgco', '', 'down');
   trendCard(opt, 'Business trips', s.trip_count, '#0F6E56', 'chart-trip', '', 'up');
   trendCard(opt, 'Shift change requests', s.sc_count, '#5F5E5A', 'chart-sc', '', 'down');
-  renderFlagList(document.getElementById('ops-flags'), flags.filter(f=>f.type.toLowerCase().includes('friday') || f.type.toLowerCase().includes('shift')));
+  renderFlagList(document.getElementById('ops-flags'), flags.filter(f=>
+    f.type.toLowerCase().includes('friday') || 
+    f.type.toLowerCase().includes('shift') ||
+    f.type.toLowerCase().includes('unstable')
+  ));
 
   const lcecRows = D.request_details.lcec[key] || [];
   renderGenericTable(document.getElementById('ops-lcec-table'),
-    ['Employee','Date','CI status','CO status','Reason','Status'],
-    lcecRows.map(r=>[r.name, r.date, r.ci_category, r.co_category, r.reason || '\u2014', r.status]),
+    ['Employee','Date','Minutes','CI status','CO status','Reason','Status'],
+    lcecRows.map(r=>[r.name, r.date, fmtNum(r.minutes||0,0), r.ci_category, r.co_category, r.reason || '\u2014', r.status]),
     'No Late CI / Early CO requests this week for this scope.');
 
   const tripRows = D.request_details.trip[key] || [];

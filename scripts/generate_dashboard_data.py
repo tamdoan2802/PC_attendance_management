@@ -267,6 +267,10 @@ def preprocess(raw):
         lcec["Status_Flag"] = pd.to_numeric(lcec["Status_Flag"], errors="coerce").fillna(0).astype(int)
         lcec["Week Period"] = lcec["Week Period"].astype(str).str.strip() \
             if "Week Period" in lcec.columns else ""
+        lcec["Minutes"] = pd.to_numeric(lcec.get("Đi muộn đầu ca (Mins)", 0), errors="coerce").fillna(0) + \
+                          pd.to_numeric(lcec.get("Đi muộn giữa ca (mins)", 0), errors="coerce").fillna(0) + \
+                          pd.to_numeric(lcec.get("Về sớm giữa ca", 0), errors="coerce").fillna(0) + \
+                          pd.to_numeric(lcec.get("Về sớm cuối ca", 0), errors="coerce").fillna(0)
         lcec = lcec[~lcec["Employee_ID"].isin(EXCLUDED_IDS)]
 
     # -- Req_BusinessTrip ----------------------------------
@@ -744,6 +748,25 @@ def build_dash_data(proc, scopes, week_ranges):
                 flags.append({"type": "Friday shift-change cluster", "severity": "warning",
                               "text": f"{len(fri_sc)} shift changes on Friday — may thin end-of-week capacity"})
 
+        # --- SC & LCEC FLAGS ---
+        if not sc.empty:
+            s_2wk = sc[sc["Week Period"].isin(week_ranges[-2:])] if len(week_ranges) >= 2 else sc[sc["Week Period"] == cur_week]
+            s_sc = req_scope(s_2wk, emp_ids, t)
+            sc_counts = s_sc.groupby("Employee_ID").size()
+            for eid, cnt in sc_counts.items():
+                if cnt >= 2:
+                    nm = emp[emp["EmployeeID"] == eid]["FullNameEN"].iloc[0] if eid in emp["EmployeeID"].values else eid
+                    flags.append({"type": "Volatile Shift Switch", "severity": "warning", "text": f"{nm}: {cnt} shift changes in last 2 weeks"})
+        
+        if not lcec.empty:
+            lc_2wk = lcec[lcec["Week Period"].isin(week_ranges[-2:])] if len(week_ranges) >= 2 else lcec[lcec["Week Period"] == cur_week]
+            lc_sc = req_scope(lc_2wk, emp_ids, t)
+            lc_counts = lc_sc.groupby("Employee_ID").size()
+            for eid, cnt in lc_counts.items():
+                if cnt >= 2:
+                    nm = emp[emp["EmployeeID"] == eid]["FullNameEN"].iloc[0] if eid in emp["EmployeeID"].values else eid
+                    flags.append({"type": "Unstable Working Time", "severity": "warning", "text": f"{nm}: {cnt} late CI/early CO requests in last 2 weeks"})
+
         flags_out[sk] = flags
         # back-fill active_flags for current week
         if sk in data_out:
@@ -1041,6 +1064,7 @@ def build_dash_data(proc, scopes, week_ranges):
                      "date":        fmt_date(r.get("Apply_From")),
                      "ci_category": str(r.get("CI_Category_Mapped", "")),
                      "co_category": str(r.get("CO_Category_Mapped", "")),
+                     "minutes":     safe_float(r.get("Minutes")),
                      "reason":      str(r.get("Reason_Detail") or r.get("Reason_Group") or ""),
                      "status":      str(r.get("Status", ""))}
                     for _, r in lc_app.iterrows()
