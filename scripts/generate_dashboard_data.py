@@ -1117,44 +1117,29 @@ def build_dash_data(proc, scopes, week_ranges):
         import pandas as pd
         
         # 1. Absences
-        abs_df = att[att["Type of Date"].str.contains("Leave", na=False, case=False)]
         absences = []
-        for _, r in abs_df.iterrows():
-            date_str = str(r["Date_Text"])
+        lwk = leave[leave["Status_Flag"] == 1]
+        for _, r in lwk.iterrows():
             try:
-                date_obj = pd.to_datetime(date_str, format="%d/%m/%Y")
-                date_str = date_obj.strftime("%Y-%m-%d")
+                lf = pd.to_datetime(r["Leave_From"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+                lt = pd.to_datetime(r["Leave_To"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+                if pd.isnull(lf) or pd.isnull(lt): continue
+                delta = (lt - lf).days
+                for i in range(delta + 1):
+                    d = lf + pd.Timedelta(days=i)
+                    if d.weekday() < 5: # Mon-Fri
+                        absences.append({
+                            "date": d.strftime("%Y-%m-%d"),
+                            "name": str(r.get("Employee_Name", "")),
+                            "customer": str(r.get("DIM_Employee.Client", "")),
+                            "team": str(r.get("DIM_Employee.Team", "")),
+                            "reason": "Leave",
+                            "notice_category": str(r.get("notice_category", "Unknown"))
+                        })
             except:
                 pass
-                
-            emp_name = str(r.get("Employee_Name", ""))
-            
-            # notice_category
-            match_leave = leave[(leave["Employee_Name"] == emp_name) & (leave["Status_Flag"] == 1)]
-            notice_cat = "Unknown"
-            for _, lr in match_leave.iterrows():
-                try:
-                    lf = pd.to_datetime(lr["Leave_From"])
-                    lt = pd.to_datetime(lr["Leave_To"])
-                    d_obj = pd.to_datetime(date_str)
-                    if pd.notnull(lf) and pd.notnull(lt) and pd.notnull(d_obj):
-                        if lf.date() <= d_obj.date() <= lt.date():
-                            notice_cat = str(lr.get("notice_category", "Unknown"))
-                            break
-                except:
-                    pass
-
-            absences.append({
-                "date": date_str,
-                "name": emp_name,
-                "customer": str(r.get("DIM_Employee.Client", "")),
-                "team": str(r.get("DIM_Employee.Team", "")),
-                "reason": str(r.get("Type of Date", "")),
-                "notice_category": notice_cat
-            })
             
         # 2. Weekly Leaves
-        lwk = leave[leave["Status_Flag"] == 1]
         weekly_leaves = []
         for _, r in lwk.iterrows():
             weekly_leaves.append({
@@ -1185,10 +1170,25 @@ def build_dash_data(proc, scopes, week_ranges):
                 "time": t
             })
             
+        # 4. Average Working Hours per Customer per Week
+        att["_Hrs"] = pd.to_numeric(att["Số giờ làm việc thực tế"], errors="coerce")
+        work = att[(att["Is_Weekend"] == 0) & att["Type of Date"].isin(["FullWorkDay", "HalfWorkDay"])]
+        avg_hrs = work.groupby(["Week Period", "DIM_Employee.Client"])["_Hrs"].mean().reset_index()
+        
+        avg_hrs_dict = {}
+        for _, r in avg_hrs.iterrows():
+            wk = week_label(str(r["Week Period"]))
+            c = str(r["DIM_Employee.Client"])
+            val = safe_float(r["_Hrs"])
+            if wk not in avg_hrs_dict: avg_hrs_dict[wk] = {}
+            avg_hrs_dict[wk][c] = val
+            
         return {
+            "weeks": [week_label(w) for w in week_ranges],
             "absences": absences,
             "weekly_leaves": weekly_leaves,
-            "late_watch": late_watch
+            "late_watch": late_watch,
+            "avg_hrs": avg_hrs_dict
         }
 
     # --- Assemble --------------------------------------------
