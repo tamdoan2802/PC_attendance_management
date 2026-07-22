@@ -240,14 +240,12 @@ const charts = {};
 function fmtNum(n, d=1){ return Number(n).toLocaleString(undefined, {maximumFractionDigits:d}); }
 function scopeKey(){ return `${teamScope}||${clientScope}`; }
 
-// ---------- header / nav setup ----------
-document.getElementById('curWeekLabel').textContent = D.week_ranges[D.week_ranges.length-1];
-
 const teamSel = document.getElementById('teamFilter');
 const clientSel = document.getElementById('clientFilter');
 
 function populateSelect(sel, options, current){
   sel.innerHTML = '';
+
   options.forEach(o=>{
     const opt = document.createElement('option'); opt.value=o; opt.textContent=o; sel.appendChild(opt);
   });
@@ -255,6 +253,7 @@ function populateSelect(sel, options, current){
 }
 
 function refreshFilterOptions(){
+  if (!D || !D.teams) return;
   // Team options depend on selected client; Client options depend on selected team.
   const teamOptions = clientScope === 'All Clients'
     ? D.teams
@@ -262,13 +261,13 @@ function refreshFilterOptions(){
   const clientOptions = teamScope === 'All Teams'
     ? D.clients
     : ['All Clients'].concat(D.team_to_clients[teamScope] || []);
+  
   populateSelect(teamSel, teamOptions, teamScope);
   populateSelect(clientSel, clientOptions, clientScope);
+  
   teamScope = teamSel.value;
   clientScope = clientSel.value;
 }
-
-refreshFilterOptions();
 
 teamSel.addEventListener('change', ()=>{
   teamScope = teamSel.value;
@@ -280,6 +279,11 @@ clientSel.addEventListener('change', ()=>{
   refreshFilterOptions();
   renderAll();
 });
+
+function initUI() {
+  document.getElementById('curWeekLabel').textContent = D.week_ranges[D.week_ranges.length-1];
+  refreshFilterOptions();
+}
 
 const TABS = [
   {id:'overview', label:'Overview'},
@@ -1113,7 +1117,7 @@ async function loadDashboardData() {
     D = data; // Assign to global D
     
     // Initialize the UI now that data is loaded
-    populateFilterOptions();
+    initUI();
     renderAll();
   } catch(err) {
     console.error("Error loading data:", err);
