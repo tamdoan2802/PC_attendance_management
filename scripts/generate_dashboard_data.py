@@ -118,10 +118,12 @@ def week_range_label(week_period_str):
         return week_period_str
 
 def week_label(week_period_str):
-    """'13/07/2026 - 17/07/2026' → 'Wk29'."""
     try:
-        mon, _ = parse_week_mon_fri(week_period_str)
-        return f"Wk{mon.isocalendar()[1]}"
+        mon, fri = parse_week_mon_fri(week_period_str)
+        if mon.month == fri.month:
+            return f"Week {mon.strftime('%b %d')} - {fri.strftime('%d')}"
+        else:
+            return f"Week {mon.strftime('%b %d')} - {fri.strftime('%b %d')}"
     except Exception:
         return week_period_str
 
