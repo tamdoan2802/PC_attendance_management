@@ -566,7 +566,7 @@ def build_dash_data(proc, scopes, week_ranges):
         "leave_days","leave_approval","leave_headcount",
         "leave_planned_days","leave_unplanned_days","leave_urgent_days",
         "leave_planned_count","leave_unplanned_count","leave_urgent_count",
-        "ot_hours","ot_weekend_hours","ot_weekday_hours","wfh_days",
+        "ot_hours","ot_weekend_hours","ot_weekday_hours","ot_employees","wfh_days",
         "lc_ec_events","trip_count","sc_count",
         "early_checkout_rate","avg_early_co",
         "early_ci_signal_count","early_ci_explained_count","early_ci_unexplained_count",
@@ -597,7 +597,7 @@ def build_dash_data(proc, scopes, week_ranges):
                                  "leave_days","leave_approval","leave_headcount",
                                  "leave_planned_days","leave_unplanned_days","leave_urgent_days",
                                  "leave_planned_count","leave_unplanned_count","leave_urgent_count",
-                                 "ot_hours","ot_weekend_hours","ot_weekday_hours","wfh_days",
+                                 "ot_hours","ot_weekend_hours","ot_weekday_hours","ot_employees","wfh_days",
                                  "lc_ec_events","trip_count","sc_count"):
                         series[k].append(0)
                     else:
@@ -651,11 +651,13 @@ def build_dash_data(proc, scopes, week_ranges):
                 o_app = o_sc[o_sc["Status_Flag"] == 1]
                 wknd_hrs  = round(float(o_app.loc[o_app["OT_Timing"] == "Ngày nghỉ", "OT_Hours"].sum()), 1)
                 total_hrs = round(float(o_app["OT_Hours"].sum()), 1)
+                emp_count = o_app["Employee_ID"].nunique() if "Employee_ID" in o_app.columns else 0
                 series["ot_hours"].append(total_hrs)
                 series["ot_weekend_hours"].append(wknd_hrs)
                 series["ot_weekday_hours"].append(round(total_hrs - wknd_hrs, 1))
+                series["ot_employees"].append(emp_count)
             else:
-                series["ot_hours"].append(0); series["ot_weekend_hours"].append(0); series["ot_weekday_hours"].append(0)
+                series["ot_hours"].append(0); series["ot_weekend_hours"].append(0); series["ot_weekday_hours"].append(0); series["ot_employees"].append(0)
 
             # -- WFH --------------------------------------
             if not wfh.empty:
@@ -978,7 +980,10 @@ def build_dash_data(proc, scopes, week_ranges):
             emp_ids = emp_lkp[(tt, cc)]
             if ot.empty:
                 result[sk] = []; continue
-            o_wk  = req_week(ot, cur_week, "_ot_date")
+            if "Week Period" in ot.columns:
+                o_wk = ot[ot["Week Period"].isin(week_ranges)]
+            else:
+                o_wk = ot
             o_sc  = req_scope(o_wk, emp_ids, tt)
             o_app = o_sc[o_sc["Status_Flag"] == 1]
             nc    = name_col(o_app)
@@ -1001,7 +1006,10 @@ def build_dash_data(proc, scopes, week_ranges):
             emp_ids = emp_lkp[(tt, cc)]
             if wfh.empty:
                 result[sk] = []; continue
-            w_wk  = req_week(wfh, cur_week, "WFH_From")
+            if "Week Period" in wfh.columns:
+                w_wk = wfh[wfh["Week Period"].isin(week_ranges)]
+            else:
+                w_wk = wfh
             w_sc  = req_scope(w_wk, emp_ids, tt)
             w_app = w_sc[w_sc["Status_Flag"] == 1]
             nc    = name_col(w_app)

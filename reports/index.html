@@ -1052,25 +1052,21 @@ function renderAll(){
   ok.appendChild(kpiCard('Weekday OT hours', fmtNum(last(s.ot_weekday_hours)), trendNote(last(s.ot_weekday_hours), prev(s.ot_weekday_hours), 'down'), s.ot_weekday_hours, '#D85A30'));
   ok.appendChild(kpiCard('WFH days', last(s.wfh_days), trendNote(last(s.wfh_days), prev(s.wfh_days), 'up'), s.wfh_days, '#185FA5'));
   const ot_ = document.getElementById('otwfh-trend'); ot_.innerHTML = '';
-  stackedTrendCard(ot_, 'OT hours: weekend vs weekday', otSplitInsight(s),
-    `${fmtNum(last(s.ot_weekend_hours))}h weekend \u00b7 ${fmtNum(last(s.ot_weekday_hours))}h weekday`,
-    [
-      {label:'Weekend OT', data:s.ot_weekend_hours, color:'#A32D2D'},
-      {label:'Weekday OT (after shift)', data:s.ot_weekday_hours, color:'#D85A30'}
-    ], 'chart-ot-split');
-  trendCard(ot_, 'WFH days', s.wfh_days, '#185FA5', 'chart-wfh', ' days', 'up');
+  comboTrendCardCustom(ot_, 'OT hours & employees', otSplitInsight(s), 
+    s.ot_hours, 'Hours', '#D85A30', 
+    s.ot_employees, 'Employees', '#3C3489', 'chart-ot-combo');
 
   const otTable = D.ot_details[key] || [];
   renderGenericTable(document.getElementById('ot-table'),
     ['Employee','Date','Hours','Timing','Reason','Status'],
     otTable.map(r=>[r.name, r.date, fmtNum(r.hours), r.timing, r.reason || '\u2014', r.status]),
-    'No OT requests this week for this scope.');
+    'No OT requests in the last 4 weeks for this scope.');
 
   const wfhTable = D.wfh_details[key] || [];
   renderGenericTable(document.getElementById('wfh-table'),
     ['Employee','From','To','Reason','Status'],
     wfhTable.map(r=>[r.name, r.from, r.to, r.reason || '\u2014', r.status]),
-    'No WFH requests this week for this scope.');
+    'No WFH requests in the last 4 weeks for this scope.');
 
   renderFlagList(document.getElementById('otwfh-flags'), flags.filter(f=>f.type.toLowerCase().includes('ot') || f.type.toLowerCase().includes('overwork')));
 
