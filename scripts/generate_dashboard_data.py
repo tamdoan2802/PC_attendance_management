@@ -1156,7 +1156,7 @@ def build_dash_data(proc, scopes, week_ranges):
         weekly_leaves = []
         for _, r in lwk.iterrows():
             weekly_leaves.append({
-                "week": str(r.get("Week Period", "")),
+                "week": week_label(str(r.get("Week Period", ""))),
                 "name": str(r.get("Employee_Name", "")),
                 "customer": str(r.get("DIM_Employee.Client", "")),
                 "team": str(r.get("DIM_Employee.Team", "")),
@@ -1175,7 +1175,7 @@ def build_dash_data(proc, scopes, week_ranges):
             t = str(r.get("CheckOut_Time", ""))
             if len(t) >= 5: t = t[:5]
             late_watch.append({
-                "week": str(r.get("Week Period", "")),
+                "week": week_label(str(r.get("Week Period", ""))),
                 "name": str(r.get("Employee_Name", "")),
                 "customer": str(r.get("DIM_Employee.Client", "")),
                 "team": str(r.get("DIM_Employee.Team", "")),
