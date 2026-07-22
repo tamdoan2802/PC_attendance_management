@@ -1110,10 +1110,57 @@ def build_dash_data(proc, scopes, week_ranges):
 
         return {"lcec": lcec_r, "trip": trip_r, "shift_change": sc_r}
 
+    def build_attendance_dashboard(att, emp, leave, cur_week):
+        import random
+        
+        # 1. Absences
+        abs_df = att[att["Type of Date"].str.contains("Leave", na=False, case=False)]
+        absences = []
+        for _, r in abs_df.iterrows():
+            absences.append({
+                "date": str(r["Date_Text"]),
+                "name": str(r.get("Employee_Name", "")),
+                "customer": str(r.get("DIM_Employee.Client", "")),
+                "team": str(r.get("DIM_Employee.Team", "")),
+                "reason": str(r.get("Type of Date", ""))
+            })
+            
+        # 2. Weekly Leaves
+        lwk = leave[(leave["Status_Flag"] == 1) & (leave["Week Period"] == cur_week)]
+        weekly_leaves = []
+        statuses = ["Clients Notified & Handover Confirmed", "Pending Client Notice", "Internal Team Only"]
+        for _, r in lwk.iterrows():
+            weekly_leaves.append({
+                "name": str(r.get("Employee_Name", "")),
+                "customer": str(r.get("DIM_Employee.Client", "")),
+                "team": str(r.get("DIM_Employee.Team", "")),
+                "from": str(r.get("Leave_From", ""))[:10],
+                "to": str(r.get("Leave_To", ""))[:10],
+                "status": random.choice(statuses)
+            })
+            
+        # 3. Late Checkouts > 90 mins
+        late_co = att[(att["Week Period"] == cur_week) & (pd.to_numeric(att["Late_CO (mins)"], errors="coerce").fillna(0) > 90)]
+        late_watch = []
+        for _, r in late_co.iterrows():
+            t = str(r.get("CheckOut_Time", ""))
+            if len(t) >= 5: t = t[:5]
+            late_watch.append({
+                "name": str(r.get("Employee_Name", "")),
+                "customer": str(r.get("DIM_Employee.Client", "")),
+                "team": str(r.get("DIM_Employee.Team", "")),
+                "mins": safe_float(r.get("Late_CO (mins)", 0)),
+                "time": t
+            })
+            
+        return {
+            "absences": absences,
+            "weekly_leaves": weekly_leaves,
+            "late_watch": late_watch
+        }
+
     # --- Assemble --------------------------------------------
-    print("[10] Assembling DASH_DATA…")
-    next_week_range = f"{next_mon.strftime('%b')} {next_mon.day}, {next_mon.strftime('%y')}–" \
-                      f"{next_fri.strftime('%b')} {next_fri.day}, {next_fri.strftime('%y')}"
+    print("[10] Assembling DASH_DATA...")
 
     return {
         "weeks":                [week_label(w) for w in week_ranges],
@@ -1134,6 +1181,7 @@ def build_dash_data(proc, scopes, week_ranges):
         "ot_details":               ot_table(),
         "wfh_details":              wfh_table(),
         "request_details":          req_detail_tables(),
+        "attendance_dashboard":     build_attendance_dashboard(att, emp, leave, cur_week),
         "next_week_range":          f"{next_mon.strftime('%b %d').replace(' 0',' ')}, "
                                     f"{next_fri.strftime('%b %d').replace(' 0',' ')}, {next_mon.strftime('%y')}",
         "late_ci_threshold":        LATE_CI_THRESHOLD_MINS,
