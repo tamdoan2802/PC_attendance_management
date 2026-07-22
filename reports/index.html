@@ -1175,7 +1175,11 @@ function getWeekRangesForAD() {
   let w = new Set();
   ad.weekly_leaves.forEach(x => w.add(x.week));
   ad.late_watch.forEach(x => w.add(x.week));
-  let wArr = Array.from(w).sort();
+  let wArr = Array.from(w).sort((a,b) => {
+    let aNum = parseInt(a.replace('Wk', '')) || 0;
+    let bNum = parseInt(b.replace('Wk', '')) || 0;
+    return aNum - bNum;
+  });
   return wArr;
 }
 
@@ -1390,7 +1394,7 @@ function renderAttendanceDashboard() {
       let h12 = h % 12 || 12;
       let timeStr = `${h12}:${m.toString().padStart(2,'0')} ${ampm} (${r.count}x)`;
 
-      return [r.name, r.customer, cntHtml, `Avg. Checkout Time: ${timeStr}`];
+      return [r.name, r.customer, {__html: cntHtml}, `Avg. Checkout Time: ${timeStr}`];
     }),
     'No frequent late checkouts.'
   );
