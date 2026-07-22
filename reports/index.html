@@ -1321,52 +1321,18 @@ function renderAttendanceDashboard() {
   }
 
   // Update Week Labels in Headers
-  document.getElementById('ad-week-label-1').innerText = currentADWeek;
-  document.getElementById('ad-week-label-2').innerText = currentADWeek;
+  if(document.getElementById('ad-week-label-0')) document.getElementById('ad-week-label-0').innerText = currentADWeek;
+  if(document.getElementById('ad-week-label-1')) document.getElementById('ad-week-label-1').innerText = currentADWeek;
+  if(document.getElementById('ad-week-label-2')) document.getElementById('ad-week-label-2').innerText = currentADWeek;
 
-  // 2. Weekly Horizon
+  // 2. Weekly Horizon Leave Concentration Heatmap
+  const calMap = (ad.calendars && ad.calendars[currentADWeek]) ? ad.calendars[currentADWeek] : {};
+  let curRows = leaveHeatmapRows(calMap);
+  renderADLeaveHeatmap(document.getElementById('ad-leave-heatmap'), calMap, curRows);
+
   let leaves = ad.weekly_leaves.filter(x => x.week === currentADWeek);
   if(cscope !== 'All Clients') leaves = leaves.filter(x => x.customer === cscope);
   if(tscope !== 'All Teams') leaves = leaves.filter(x => x.team === tscope);
-
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-  const dayCounts = [0,0,0,0,0];
-  let totalL = leaves.length;
-  if(totalL > 0) {
-    for(let i=0; i<totalL; i++) dayCounts[i%5]++;
-  }
-
-  const lChart = document.getElementById('ad-leave-chart');
-  let c1 = Chart.getChart(lChart); if(c1) c1.destroy();
-  new Chart(lChart, {
-    type: 'bar',
-    data: {
-      labels: days,
-      datasets: [{
-        label: 'Approved absences',
-        data: dayCounts,
-        backgroundColor: '#7BAFD4'
-      }]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins: {
-        legend:{display:false},
-        datalabels: { 
-            display: true,
-            anchor:'end', 
-            align:'top', 
-            font:{weight:'bold'},
-            color:'#1F3864'
-        }
-      },
-      layout: {
-          padding: { top: 20 }
-      },
-      scales: { y:{beginAtZero:true, grid:{color:'#E4E1D8'}, ticks:{stepSize:1}} }
-    },
-    plugins:[ChartDataLabels]
-  });
 
   // Leave Table
   renderGenericTable(document.getElementById('ad-leave-table'),
