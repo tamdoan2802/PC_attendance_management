@@ -236,10 +236,9 @@
     <div style="border:1px solid #AECFE8; border-radius:10px; padding:16px; margin-bottom:14px; background:#F2F8FD;">
       <div class="section-title" style="margin-top:0;">Weekly Horizon: Who was and will be absent</div>
       <div class="grid grid-2">
-        <div class="chart-card">
-          <p class="chart-insight">Leaves This Week</p>
-          <p class="chart-meta">Total number of approved absences per day</p>
-          <canvas id="ad-leave-chart" height="180"></canvas>
+        <div class="card" style="display:flex; flex-direction:column; height:100%;">
+          <p class="chart-insight" style="margin-bottom:8px;">Leave concentration (<span id="ad-week-label-0"></span>)</p>
+          <div id="ad-leave-heatmap"></div>
         </div>
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -1220,6 +1219,50 @@ window.nextADWeek = () => {
   let idx = wArr.indexOf(currentADWeek);
   if(idx < wArr.length-1) { currentADWeek = wArr[idx+1]; renderAttendanceDashboard(); }
 };
+
+function renderADLeaveHeatmap(container, calMap, rows){
+  container.innerHTML = '';
+  if(!calMap || Object.keys(calMap).length === 0){
+    container.innerHTML = '<div class="empty">No leave concentration data for this week.</div>';
+    return;
+  }
+  const rowsWithData = rows.filter(r => calMap[r.key] && calMap[r.key].headcount > 0);
+  if(rowsWithData.length === 0){
+    container.innerHTML = '<div class="empty">No active headcount in this scope.</div>';
+    return;
+  }
+
+  const sampleKey = rowsWithData[0].key;
+  const days = calMap[sampleKey].days;
+  const dayHeader = d => `${d.weekday}<br><span style="font-weight:400;color:var(--muted)">${d.date}</span>`;
+  let thead = '<tr><th class="row-head">Customer</th>' + days.map(dayHeader).map(h => `<th>${h}</th>`).join('') + '</tr>';
+
+  function cellHtml(r, d){
+    if(!d) return '<td></td>';
+    const bg = heatColor(d.pct);
+    const fg = heatTextColor(d.pct);
+    const namesLine = d.employees && d.employees.length ? `\nOn leave: ${d.employees.join(', ')}` : '\nNo one on leave';
+    const title = `${r.label} — ${d.weekday} ${d.date}\n${d.on_leave_count} of ${d.total_headcount} on leave (${fmtNum(d.pct)}%)${namesLine}`;
+    return `<td><div class="heat-cell" style="background:${bg};color:${fg}" title="${title}">
+      <div class="hc-pct">${fmtNum(d.pct)}%</div>
+      <div class="hc-count">${d.on_leave_count}/${d.total_headcount}</div>
+    </div></td>`;
+  }
+
+  let tbody = '';
+  rowsWithData.forEach(r => {
+    const cal = calMap[r.key];
+    const hc = cal ? cal.headcount : 0;
+    tbody += `<tr><td class="row-head">${r.label} <span style="color:var(--muted);font-weight:400">(${hc})</span></td>`;
+    (cal ? cal.days : Array(5).fill(null)).forEach(d => { tbody += cellHtml(r, d); });
+    tbody += '</tr>';
+  });
+
+  const table = document.createElement('table');
+  table.className = 'heatmap-table';
+  table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+  container.appendChild(table);
+}
 
 function renderAttendanceDashboard() {
   const ad = D.attendance_dashboard;

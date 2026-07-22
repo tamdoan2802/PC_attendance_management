@@ -1195,19 +1195,27 @@ def build_dash_data(proc, scopes, week_ranges):
         end_mon = max_date - pd.Timedelta(days=max_date.weekday())
         
         continuous_weeks = []
+        calendars = {}
         curr = start_mon
         while curr <= end_mon:
             fri = curr + pd.Timedelta(days=4)
+            wp_str = f"{curr.strftime('%d/%m/%Y')} - {fri.strftime('%d/%m/%Y')}"
             if curr.month == fri.month:
                 cw = f"Week {curr.strftime('%b %d')} - {fri.strftime('%d')}"
             else:
                 cw = f"Week {curr.strftime('%b %d')} - {fri.strftime('%b %d')}"
             continuous_weeks.append(cw)
+            
+            cal_data = build_calendar(wp_str, is_next=False)
+            if cal_data:
+                calendars[cw] = cal_data
+                
             curr += pd.Timedelta(days=7)
             
         return {
             "current_week": week_label(cur_week),
             "weeks": continuous_weeks,
+            "calendars": calendars,
             "absences": absences,
             "weekly_leaves": weekly_leaves,
             "late_watch": late_watch,
