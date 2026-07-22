@@ -1172,12 +1172,10 @@ let currentADWeek = null;
 function getWeekRangesForAD() {
   const ad = D.attendance_dashboard;
   if(!ad) return [];
-  // Get all unique weeks from weekly_leaves and late_watch
   let w = new Set();
   ad.weekly_leaves.forEach(x => w.add(x.week));
   ad.late_watch.forEach(x => w.add(x.week));
-  let wArr = Array.from(w).sort(); // They are usually sorted if string formatted nicely, but let's assume they match D.weeks
-  if(wArr.length === 0) wArr = [D.weeks[D.weeks.length-1]];
+  let wArr = Array.from(w).sort();
   return wArr;
 }
 
@@ -1186,8 +1184,10 @@ function initAttendanceDashboard() {
   if(!ad) return;
   
   // Setup Date dropdown
-  let dates = [...new Set(ad.absences.map(x => x.date))].sort();
-  if(dates.length === 0) dates = [new Date().toISOString().split('T')[0]];
+  let todayStr = new Date().toISOString().split('T')[0];
+  let dates = [...new Set(ad.absences.map(x => x.date))];
+  if(!dates.includes(todayStr)) dates.push(todayStr);
+  dates.sort();
   if(!currentADDate) currentADDate = dates[dates.length-1];
 
   const sel = document.getElementById('ad-date-select');
@@ -1197,17 +1197,17 @@ function initAttendanceDashboard() {
   }
   
   // Setup Week controls
-  let weeks = getWeekRangesForAD();
-  if(!currentADWeek) currentADWeek = D.weeks[D.weeks.length-1]; // Default to current week
+  let wArr = getWeekRangesForAD();
+  if(!currentADWeek && wArr.length > 0) currentADWeek = wArr[wArr.length-1];
 }
 
 window.prevADWeek = () => {
-  let wArr = D.weeks;
+  let wArr = getWeekRangesForAD();
   let idx = wArr.indexOf(currentADWeek);
   if(idx > 0) { currentADWeek = wArr[idx-1]; renderAttendanceDashboard(); }
 };
 window.nextADWeek = () => {
-  let wArr = D.weeks;
+  let wArr = getWeekRangesForAD();
   let idx = wArr.indexOf(currentADWeek);
   if(idx < wArr.length-1) { currentADWeek = wArr[idx+1]; renderAttendanceDashboard(); }
 };
@@ -1238,8 +1238,10 @@ function renderAttendanceDashboard() {
     absentRows.forEach(a => {
       let icon = 'O'; let color = '#185FA5'; let bg = '#EAF1FB';
       // Notice Category Color
-      if(a.notice_category === 'Urgent' || a.notice_category === 'Unplanned') { 
+      if(a.notice_category === 'Urgent') { 
           icon = '!'; color = '#A32D2D'; bg = '#FCEBEB';
+      } else if (a.notice_category === 'Unplanned') {
+          icon = '!'; color = '#B8860B'; bg = '#FDF5E6';
       } else if (a.notice_category === 'Planned') {
           icon = 'P'; color = '#3B6D11'; bg = '#EAF3DE';
       }
@@ -1315,14 +1317,8 @@ function renderAttendanceDashboard() {
   renderGenericTable(document.getElementById('ad-leave-table'),
     ['Employee Name', 'Customer', 'Leave Dates', 'Leave Days', 'Notice Category', 'Arrangement'],
     leaves.map(r => {
-      let stHtml = `<span style="padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; color:#155724;background:#d4edda;border:1px solid #c3e6cb">${r.status}</span>`;
-      
-      let ncColor = '#6b6b66';
-      if(r.notice_category === 'Urgent' || r.notice_category === 'Unplanned') ncColor = '#A32D2D';
-      if(r.notice_category === 'Planned') ncColor = '#3B6D11';
-      let ncHtml = `<span style="color:${ncColor}; font-weight:bold;">${r.notice_category}</span>`;
-      
-      return [r.name, r.customer, `${r.from} to ${r.to}`, r.days, ncHtml, stHtml];
+      let stHtml = {__html: `<span style="padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; color:#155724;background:#d4edda;border:1px solid #c3e6cb">${r.status}</span>`};
+      return [r.name, r.customer, `${r.from} to ${r.to}`, r.days, noticeBadge(r.notice_category), stHtml];
     }),
     'No leaves this week.'
   );
