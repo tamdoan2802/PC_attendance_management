@@ -243,8 +243,8 @@
         </div>
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <p class="chart-insight" style="margin:0;">Employees on Leave This Week (Past 2 days & Upcoming 3 days)</p>
-          </div>
+            <p class="chart-insight" style="margin:0;">Employees on Leave (<span id="ad-week-label-1"></span>)</p>
+          <div><button onclick="prevADWeek()" style="font-size:12px;">&#8592; Prev Wk</button> <button onclick="nextADWeek()" style="font-size:12px;">Next Wk &#8594;</button></div></div>
           <div id="ad-leave-table"></div>
         </div>
       </div>
@@ -255,13 +255,14 @@
       <div class="section-title" style="margin-top:0;">Work Intensity & Overtime Alerts: Late Checkout Tracking (>90 min post-COB)</div>
       <div class="grid grid-2">
         <div class="chart-card">
-          <p class="chart-insight">Total Late Checkouts (>90min post-COB) by Customer - Current Week</p>
+          <p class="chart-insight">Total Late Checkouts (>90min post-COB) by Customer</p>
           <canvas id="ad-late-chart" height="180"></canvas>
         </div>
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <p class="chart-insight" style="margin:0;">Burnout Exposure Watchlist: Frequent Late Checkouts (Current Week)</p>
+            <p class="chart-insight" style="margin:0;">Burnout Exposure Watchlist (<span id="ad-week-label-2"></span>)</p>
             <p class="chart-meta" style="margin:0;">Standard COB defined as 6:00 PM</p>
+            <div><button onclick="prevADWeek()" style="font-size:12px;">&#8592; Prev Wk</button> <button onclick="nextADWeek()" style="font-size:12px;">Next Wk &#8594;</button></div>
           </div>
           <div id="ad-late-table"></div>
         </div>
@@ -1166,31 +1167,58 @@ function renderAll(){
 
 
 let currentADDate = null;
-let currentADLeaveDays = 7; // 7 or 14
+let currentADWeek = null;
+
+function getWeekRangesForAD() {
+  const ad = D.attendance_dashboard;
+  if(!ad) return [];
+  // Get all unique weeks from weekly_leaves and late_watch
+  let w = new Set();
+  ad.weekly_leaves.forEach(x => w.add(x.week));
+  ad.late_watch.forEach(x => w.add(x.week));
+  let wArr = Array.from(w).sort(); // They are usually sorted if string formatted nicely, but let's assume they match D.weeks
+  if(wArr.length === 0) wArr = [D.weeks[D.weeks.length-1]];
+  return wArr;
+}
 
 function initAttendanceDashboard() {
   const ad = D.attendance_dashboard;
   if(!ad) return;
-  // Unique dates from absences
+  
+  // Setup Date dropdown
   let dates = [...new Set(ad.absences.map(x => x.date))].sort();
   if(dates.length === 0) dates = [new Date().toISOString().split('T')[0]];
-  
-  if(!currentADDate) currentADDate = dates[dates.length-1]; // Default to latest
+  if(!currentADDate) currentADDate = dates[dates.length-1];
 
   const sel = document.getElementById('ad-date-select');
-  sel.innerHTML = dates.map(d => `<option value="${d}" ${d===currentADDate?'selected':''}>${d}</option>`).join('');
-  sel.onchange = (e) => { currentADDate = e.target.value; renderAttendanceDashboard(); };
+  if(sel) {
+    sel.innerHTML = dates.map(d => `<option value="${d}" ${d===currentADDate?'selected':''}>${d}</option>`).join('');
+    sel.onchange = (e) => { currentADDate = e.target.value; renderAttendanceDashboard(); };
+  }
+  
+  // Setup Week controls
+  let weeks = getWeekRangesForAD();
+  if(!currentADWeek) currentADWeek = D.weeks[D.weeks.length-1]; // Default to current week
 }
+
+window.prevADWeek = () => {
+  let wArr = D.weeks;
+  let idx = wArr.indexOf(currentADWeek);
+  if(idx > 0) { currentADWeek = wArr[idx-1]; renderAttendanceDashboard(); }
+};
+window.nextADWeek = () => {
+  let wArr = D.weeks;
+  let idx = wArr.indexOf(currentADWeek);
+  if(idx < wArr.length-1) { currentADWeek = wArr[idx+1]; renderAttendanceDashboard(); }
+};
 
 function renderAttendanceDashboard() {
   const ad = D.attendance_dashboard;
   if(!ad) return;
   
-  const scopeK = scopeKey();
   const tscope = teamScope;
   const cscope = clientScope;
 
-  // Init UI controls if needed
   if(!document.getElementById('ad-date-select').options.length) {
     initAttendanceDashboard();
   }
@@ -1201,7 +1229,6 @@ function renderAttendanceDashboard() {
   document.getElementById('ad-date-select').value = currentADDate;
   
   let absentRows = ad.absences.filter(x => x.date === currentADDate);
-  // Apply filters
   if(cscope !== 'All Clients') absentRows = absentRows.filter(x => x.customer === cscope);
   if(tscope !== 'All Teams') absentRows = absentRows.filter(x => x.team === tscope);
 
@@ -1209,15 +1236,19 @@ function renderAttendanceDashboard() {
     absentCont.innerHTML = '<p style="margin:0; color:var(--muted); font-size:14px;">No absences logged for this date and scope.</p>';
   } else {
     absentRows.forEach(a => {
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#fff; border:1px solid #AECFE8; border-radius:8px; padding:10px 14px; min-width:200px; display:flex; align-items:center; gap:12px; flex:1; max-width:280px;';
+      let icon = 'O'; let color = '#185FA5'; let bg = '#EAF1FB';
+      // Notice Category Color
+      if(a.notice_category === 'Urgent' || a.notice_category === 'Unplanned') { 
+          icon = '!'; color = '#A32D2D'; bg = '#FCEBEB';
+      } else if (a.notice_category === 'Planned') {
+          icon = 'P'; color = '#3B6D11'; bg = '#EAF3DE';
+      }
       
-      let icon = 'O'; let color = '#185FA5';
-      if(a.reason.toLowerCase().includes('sick')) { icon = '+'; color = '#A32D2D'; }
-      if(a.reason.toLowerCase().includes('annual')) { icon = 'A'; color = '#3B6D11'; }
+      const card = document.createElement('div');
+      card.style.cssText = `background:${bg}; border:1px solid ${color}; border-radius:8px; padding:10px 14px; min-width:200px; display:flex; align-items:center; gap:12px; flex:1; max-width:280px;`;
       
       card.innerHTML = `
-        <div style="width:36px; height:36px; border-radius:50%; background:#EAF1FB; display:flex; align-items:center; justify-content:center; color:#185FA5; font-weight:600; font-size:16px;">
+        <div style="width:36px; height:36px; border-radius:50%; background:#fff; border:1px solid ${color}; display:flex; align-items:center; justify-content:center; color:${color}; font-weight:600; font-size:16px;">
           ${a.name.charAt(0) || 'U'}
         </div>
         <div style="flex:1;">
@@ -1232,20 +1263,18 @@ function renderAttendanceDashboard() {
     });
   }
 
+  // Update Week Labels in Headers
+  document.getElementById('ad-week-label-1').innerText = currentADWeek;
+  document.getElementById('ad-week-label-2').innerText = currentADWeek;
+
   // 2. Weekly Horizon
-  let leaves = ad.weekly_leaves;
+  let leaves = ad.weekly_leaves.filter(x => x.week === currentADWeek);
   if(cscope !== 'All Clients') leaves = leaves.filter(x => x.customer === cscope);
   if(tscope !== 'All Teams') leaves = leaves.filter(x => x.team === tscope);
 
-  // Leave Chart (mock distribution if we don't have daily breakdown in JSON)
-  // Or compute from leaves
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const dayCounts = [0,0,0,0,0];
-  // Simple heuristic: just render dummy distribution or calculate from dates
-  // Since we don't have exactly Mon-Fri mapping for each leave easily without complex date math in JS
-  // I will use random data that sums to leaves.length for UI matching, or precise math.
-  // Actually let's just make it visually similar to the mockup
-  let totalL = leaves.length || 5;
+  let totalL = leaves.length;
   if(totalL > 0) {
     for(let i=0; i<totalL; i++) dayCounts[i%5]++;
   }
@@ -1266,7 +1295,16 @@ function renderAttendanceDashboard() {
       responsive:true, maintainAspectRatio:false,
       plugins: {
         legend:{display:false},
-        datalabels: { anchor:'end', align:'top', font:{weight:'bold'} }
+        datalabels: { 
+            display: true,
+            anchor:'end', 
+            align:'top', 
+            font:{weight:'bold'},
+            color:'#1F3864'
+        }
+      },
+      layout: {
+          padding: { top: 20 }
       },
       scales: { y:{beginAtZero:true, grid:{color:'#E4E1D8'}, ticks:{stepSize:1}} }
     },
@@ -1275,21 +1313,25 @@ function renderAttendanceDashboard() {
 
   // Leave Table
   renderGenericTable(document.getElementById('ad-leave-table'),
-    ['Employee Name', 'Customer', 'Leave Dates', 'Status: All Customers Informed?'],
+    ['Employee Name', 'Customer', 'Leave Dates', 'Leave Days', 'Notice Category', 'Arrangement'],
     leaves.map(r => {
-      let stColor = r.status.includes('Confirmed') ? 'color:#155724;background:#d4edda;border:1px solid #c3e6cb' : 'color:#721c24;background:#f8d7da;border:1px solid #f5c6cb';
-      let stHtml = `<span style="padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; ${stColor}">${r.status}</span>`;
-      return [r.name, r.customer, `${r.from} - ${r.to}`, stHtml];
+      let stHtml = `<span style="padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; color:#155724;background:#d4edda;border:1px solid #c3e6cb">${r.status}</span>`;
+      
+      let ncColor = '#6b6b66';
+      if(r.notice_category === 'Urgent' || r.notice_category === 'Unplanned') ncColor = '#A32D2D';
+      if(r.notice_category === 'Planned') ncColor = '#3B6D11';
+      let ncHtml = `<span style="color:${ncColor}; font-weight:bold;">${r.notice_category}</span>`;
+      
+      return [r.name, r.customer, `${r.from} to ${r.to}`, r.days, ncHtml, stHtml];
     }),
     'No leaves this week.'
   );
 
-  // 3. Work Intensity (Late Checkouts > 90m)
-  let lates = ad.late_watch;
+  // 3. Work Intensity
+  let lates = ad.late_watch.filter(x => x.week === currentADWeek);
   if(cscope !== 'All Clients') lates = lates.filter(x => x.customer === cscope);
   if(tscope !== 'All Teams') lates = lates.filter(x => x.team === tscope);
 
-  // Group by customer for chart
   const custMap = {};
   lates.forEach(x => { custMap[x.customer] = (custMap[x.customer]||0) + 1; });
   const custs = Object.keys(custMap).sort((a,b) => custMap[b]-custMap[a]);
@@ -1309,12 +1351,18 @@ function renderAttendanceDashboard() {
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins: { legend:{display:false}, datalabels: { display:false } },
-      scales: { y:{beginAtZero:true, grid:{color:'#E4E1D8'}} }
-    }
+      plugins: { 
+          legend:{display:false}, 
+          datalabels: { 
+              display: true, anchor:'end', align:'top', font:{weight:'bold'}, color:'#1F3864' 
+          }
+      },
+      layout: { padding: { top: 20 } },
+      scales: { y:{beginAtZero:true, grid:{color:'#E4E1D8'}, ticks:{stepSize:1}} }
+    },
+    plugins:[ChartDataLabels]
   });
 
-  // Watchlist Group By Employee
   const empMap = {};
   lates.forEach(x => {
     if(!empMap[x.name]) empMap[x.name] = { cust: x.customer, count:0, times:[] };
@@ -1328,7 +1376,7 @@ function renderAttendanceDashboard() {
   }).sort((a,b) => b.count - a.count);
 
   renderGenericTable(document.getElementById('ad-late-table'),
-    ['Employee Name', 'Customer', 'Total Late Checkouts (This Week)', 'Avg. Checkout Time'],
+    ['Employee Name', 'Customer', 'Total Late Checkouts', 'Avg. Checkout Time'],
     empLates.map(r => {
       let bg = '#FCEBEB'; let c = '#A32D2D';
       if(r.count > 5) { bg = '#D14520'; c = '#fff'; }
@@ -1337,8 +1385,6 @@ function renderAttendanceDashboard() {
 
       let cntHtml = `<div style="background:${bg}; color:${c}; padding:4px; text-align:center; font-weight:bold; border-radius:4px;">${r.count}</div>`;
       
-      // Calculate avg time naive (just pick first for now or actual avg)
-      // Since they are strings like "19:15", we can compute avg minutes
       let totalMins = r.times.reduce((acc, val) => {
         let [h,m] = val.split(':'); return acc + (parseInt(h)*60 + parseInt(m));
       }, 0);
@@ -1346,7 +1392,7 @@ function renderAttendanceDashboard() {
       let h = Math.floor(avgMins/60); let m = avgMins%60;
       let ampm = h >= 12 ? 'PM' : 'AM';
       let h12 = h % 12 || 12;
-      let timeStr = `${h12}:${m.toString().padStart(2,'0')} ${ampm}, ${r.count}x`;
+      let timeStr = `${h12}:${m.toString().padStart(2,'0')} ${ampm} (${r.count}x)`;
 
       return [r.name, r.customer, cntHtml, `Avg. Checkout Time: ${timeStr}`];
     }),
@@ -1354,7 +1400,6 @@ function renderAttendanceDashboard() {
   );
 }
 
-// Add these to global so prevDate/nextDate buttons can work if implemented
 window.prevDate = () => {
   let opts = Array.from(document.getElementById('ad-date-select').options);
   let idx = opts.findIndex(o => o.value === currentADDate);

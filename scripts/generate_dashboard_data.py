@@ -1110,46 +1110,76 @@ def build_dash_data(proc, scopes, week_ranges):
 
         return {"lcec": lcec_r, "trip": trip_r, "shift_change": sc_r}
 
-    def build_attendance_dashboard(att, emp, leave, cur_week):
+    def build_attendance_dashboard(att, emp, leave, week_ranges):
         import random
+        import pandas as pd
         
         # 1. Absences
         abs_df = att[att["Type of Date"].str.contains("Leave", na=False, case=False)]
         absences = []
         for _, r in abs_df.iterrows():
+            date_str = str(r["Date_Text"])
+            try:
+                date_obj = pd.to_datetime(date_str, format="%d/%m/%Y")
+                date_str = date_obj.strftime("%Y-%m-%d")
+            except:
+                pass
+                
+            emp_name = str(r.get("Employee_Name", ""))
+            
+            # notice_category
+            match_leave = leave[(leave["Employee_Name"] == emp_name) & (leave["Status_Flag"] == 1)]
+            notice_cat = "Unknown"
+            for _, lr in match_leave.iterrows():
+                try:
+                    lf = pd.to_datetime(lr["Leave_From"])
+                    lt = pd.to_datetime(lr["Leave_To"])
+                    d_obj = pd.to_datetime(date_str)
+                    if pd.notnull(lf) and pd.notnull(lt) and pd.notnull(d_obj):
+                        if lf.date() <= d_obj.date() <= lt.date():
+                            notice_cat = str(lr.get("notice_category", "Unknown"))
+                            break
+                except:
+                    pass
+
             absences.append({
-                "date": str(r["Date_Text"]),
-                "name": str(r.get("Employee_Name", "")),
+                "date": date_str,
+                "name": emp_name,
                 "customer": str(r.get("DIM_Employee.Client", "")),
                 "team": str(r.get("DIM_Employee.Team", "")),
-                "reason": str(r.get("Type of Date", ""))
+                "reason": str(r.get("Type of Date", "")),
+                "notice_category": notice_cat
             })
             
         # 2. Weekly Leaves
-        lwk = leave[(leave["Status_Flag"] == 1) & (leave["Week Period"] == cur_week)]
+        lwk = leave[leave["Status_Flag"] == 1]
         weekly_leaves = []
-        statuses = ["Clients Notified & Handover Confirmed", "Pending Client Notice", "Internal Team Only"]
         for _, r in lwk.iterrows():
             weekly_leaves.append({
+                "week": str(r.get("Week Period", "")),
                 "name": str(r.get("Employee_Name", "")),
                 "customer": str(r.get("DIM_Employee.Client", "")),
                 "team": str(r.get("DIM_Employee.Team", "")),
                 "from": str(r.get("Leave_From", ""))[:10],
                 "to": str(r.get("Leave_To", ""))[:10],
-                "status": random.choice(statuses)
+                "days": safe_float(r.get("Leave Days in Week", 0)),
+                "notice_category": str(r.get("notice_category", "Unknown")),
+                "status": "Workload Arranged & Informed Customer"
             })
             
         # 3. Late Checkouts > 90 mins
-        late_co = att[(att["Week Period"] == cur_week) & (pd.to_numeric(att["Late_CO (mins)"], errors="coerce").fillna(0) > 90)]
+        att["_L_CO"] = pd.to_numeric(att["Late_CO (mins)"], errors="coerce").fillna(0)
+        late_co = att[att["_L_CO"] > 90]
         late_watch = []
         for _, r in late_co.iterrows():
             t = str(r.get("CheckOut_Time", ""))
             if len(t) >= 5: t = t[:5]
             late_watch.append({
+                "week": str(r.get("Week Period", "")),
                 "name": str(r.get("Employee_Name", "")),
                 "customer": str(r.get("DIM_Employee.Client", "")),
                 "team": str(r.get("DIM_Employee.Team", "")),
-                "mins": safe_float(r.get("Late_CO (mins)", 0)),
+                "mins": safe_float(r.get("_L_CO", 0)),
                 "time": t
             })
             
@@ -1181,7 +1211,7 @@ def build_dash_data(proc, scopes, week_ranges):
         "ot_details":               ot_table(),
         "wfh_details":              wfh_table(),
         "request_details":          req_detail_tables(),
-        "attendance_dashboard":     build_attendance_dashboard(att, emp, leave, cur_week),
+        "attendance_dashboard":     build_attendance_dashboard(att, emp, leave, week_ranges),
         "next_week_range":          f"{next_mon.strftime('%b %d').replace(' 0',' ')}, "
                                     f"{next_fri.strftime('%b %d').replace(' 0',' ')}, {next_mon.strftime('%y')}",
         "late_ci_threshold":        LATE_CI_THRESHOLD_MINS,
