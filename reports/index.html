@@ -1185,7 +1185,7 @@ function initAttendanceDashboard() {
   let dates = [...new Set(ad.absences.map(x => x.date))];
   if(!dates.includes(todayStr)) dates.push(todayStr);
   dates.sort();
-  if(!currentADDate) currentADDate = dates[dates.length-1];
+  if(!currentADDate) currentADDate = todayStr;
 
   const sel = document.getElementById('ad-date-select');
   if(sel) {
@@ -1195,12 +1195,20 @@ function initAttendanceDashboard() {
   
   // Setup Week controls
   let wArr = getWeekRangesForAD();
-  if(!currentADWeek && wArr.length > 0) currentADWeek = wArr[wArr.length-1];
+  if(!currentADWeek && wArr.length > 0) {
+    currentADWeek = (ad.current_week && wArr.includes(ad.current_week)) ? ad.current_week : wArr[0];
+  }
 }
 
 window.thisADWeek = () => {
+  const ad = D.attendance_dashboard;
   let wArr = getWeekRangesForAD();
-  if(wArr.length > 0) { currentADWeek = wArr[wArr.length-1]; renderAttendanceDashboard(); }
+  if(ad && ad.current_week && wArr.includes(ad.current_week)) {
+    currentADWeek = ad.current_week;
+  } else if(wArr.length > 0) {
+    currentADWeek = wArr[0];
+  }
+  renderAttendanceDashboard();
 };
 window.prevADWeek = () => {
   let wArr = getWeekRangesForAD();
@@ -1248,8 +1256,10 @@ function renderAttendanceDashboard() {
       }
       
       const card = document.createElement('div');
-      card.style.cssText = `background:${bg}; border:1px solid ${color}; border-radius:8px; padding:10px 14px; min-width:200px; display:flex; align-items:center; gap:12px; flex:1; max-width:280px;`;
-      card.title = a.reason || 'Leave';
+      card.style.cssText = `background:${bg}; border:1px solid ${color}; border-radius:8px; padding:10px 14px; min-width:200px; display:flex; align-items:center; gap:12px; flex:1; max-width:280px; cursor:pointer;`;
+      let reasonText = a.reason || 'Leave';
+      card.setAttribute('title', reasonText);
+      card.title = reasonText;
       
       card.innerHTML = `
         <div style="width:36px; height:36px; border-radius:50%; background:#fff; border:1px solid ${color}; display:flex; align-items:center; justify-content:center; color:${color}; font-weight:600; font-size:16px;">

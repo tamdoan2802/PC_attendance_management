@@ -1133,7 +1133,7 @@ def build_dash_data(proc, scopes, week_ranges):
                             "name": str(r.get("Employee_Name", "")),
                             "customer": str(r.get("DIM_Employee.Client", "")),
                             "team": str(r.get("DIM_Employee.Team", "")),
-                            "reason": "Leave",
+                            "reason": (str(r.get("Reason", "")).strip() if str(r.get("Reason", "")).strip() and str(r.get("Reason", "")).strip().lower() != "nan" else str(r.get("Leave_Type", "Leave"))),
                             "notice_category": str(r.get("notice_category", "Unknown"))
                         })
             except:
@@ -1149,7 +1149,7 @@ def build_dash_data(proc, scopes, week_ranges):
                 "team": str(r.get("DIM_Employee.Team", "")),
                 "from": str(r.get("Leave_From", ""))[:10],
                 "to": str(r.get("Leave_To", ""))[:10],
-                "days": safe_float(r.get("Leave Days in Week", 0)),
+                "days": safe_float(r.get("Leave_Days", 0)),
                 "notice_category": str(r.get("notice_category", "Unknown")),
                 "status": "Workload Arranged & Informed Customer"
             })
@@ -1183,8 +1183,31 @@ def build_dash_data(proc, scopes, week_ranges):
             if wk not in avg_hrs_dict: avg_hrs_dict[wk] = {}
             avg_hrs_dict[wk][c] = val
             
+        # Generate continuous weeks
+        import pandas as pd
+        min_date = pd.to_datetime(att["Date_Text"], format="%d/%m/%Y", errors="coerce").min()
+        max_date = pd.to_datetime(leave["Leave_To"]).max()
+        if pd.isnull(max_date): max_date = pd.to_datetime(att["Date_Text"], format="%d/%m/%Y", errors="coerce").max()
+        if pd.isnull(min_date): min_date = pd.Timestamp.now() - pd.Timedelta(days=30)
+        if pd.isnull(max_date): max_date = pd.Timestamp.now() + pd.Timedelta(days=30)
+        
+        start_mon = min_date - pd.Timedelta(days=min_date.weekday())
+        end_mon = max_date - pd.Timedelta(days=max_date.weekday())
+        
+        continuous_weeks = []
+        curr = start_mon
+        while curr <= end_mon:
+            fri = curr + pd.Timedelta(days=4)
+            if curr.month == fri.month:
+                cw = f"Week {curr.strftime('%b %d')} - {fri.strftime('%d')}"
+            else:
+                cw = f"Week {curr.strftime('%b %d')} - {fri.strftime('%b %d')}"
+            continuous_weeks.append(cw)
+            curr += pd.Timedelta(days=7)
+            
         return {
-            "weeks": [week_label(w) for w in week_ranges],
+            "current_week": week_label(cur_week),
+            "weeks": continuous_weeks,
             "absences": absences,
             "weekly_leaves": weekly_leaves,
             "late_watch": late_watch,
