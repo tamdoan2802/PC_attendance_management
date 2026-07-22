@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce Attendance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root{
+    --navy:#1F3864; --navy-light:#2E5090; --blue-tint:#EAF1FB;
+    --slate:#3d3d3a; --muted:#6b6b66; --border:#E4E1D8;
+    --bg:#F7F6F2; --card:#FFFFFF;
+    --red:#A32D2D; --red-tint:#FCEBEB;
+    --amber:#854F0B; --amber-tint:#FAEEDA;
+    --green:#3B6D11; --green-tint:#EAF3DE;
+    --teal:#0F6E56; --teal-tint:#E1F5EE;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--slate);}
+  .app{max-width:1180px;margin:0 auto;padding:24px 20px 60px;}
+
+  header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:20px;}
+  h1{font-size:21px;font-weight:600;margin:0;color:var(--navy);}
+  .sub{font-size:13px;color:var(--muted);margin-top:3px;}
+  .controls{display:flex;gap:10px;align-items:center;}
+  select{font-size:13px;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--slate);min-width:150px;}
+
+  nav{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto;}
+  .tab{padding:10px 16px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;user-select:none;}
+  .tab:hover{color:var(--navy);}
+  .tab.active{color:var(--navy);font-weight:600;border-bottom-color:var(--navy);}
+
+  .page{display:none;}
+  .page.active{display:block;}
+
+  .grid{display:grid;gap:14px;}
+  .grid-4{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));}
+  .grid-3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
+  .grid-2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr));}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .kpi-label{font-size:12.5px;color:var(--muted);margin:0 0 6px;}
+  .kpi-value{font-size:26px;font-weight:600;margin:0;color:var(--navy);}
+  .kpi-note{font-size:12px;margin:6px 0 0;}
+  .note-danger{color:var(--red);} .note-warn{color:var(--amber);} .note-ok{color:var(--green);} .note-muted{color:var(--muted);}
+  .spark{display:block;margin-top:8px;}
+
+  .section-title{font-size:14px;font-weight:600;color:var(--navy);margin:26px 0 12px;}
+  .section-title:first-child{margin-top:0;}
+
+  .module-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+  .module-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;font-weight:600;color:var(--navy);}
+  .module-value{font-size:20px;font-weight:600;margin:0;}
+  .module-note{font-size:12px;color:var(--muted);margin:3px 0 0;}
+  .module-card .spark{margin-top:6px;}
+
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .chart-insight{font-size:13.5px;font-weight:600;color:var(--navy);margin:0 0 4px;line-height:1.35;}
+  .chart-meta{font-size:11.5px;color:var(--muted);margin:0 0 10px;}
+  canvas{max-height:180px;}
+
+  .flag-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .flag-row:last-child{border-bottom:none;}
+  .flag-text{flex:1;}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap;font-weight:600;}
+  .badge-danger{background:var(--red-tint);color:var(--red);}
+  .badge-warn{background:var(--amber-tint);color:var(--amber);}
+  .empty{font-size:13px;color:var(--muted);padding:20px 0;text-align:center;}
+
+  .tab-intro{background:var(--blue-tint);border:1px solid #C9DAF2;border-radius:10px;padding:16px 18px;margin-bottom:22px;}
+  .tab-intro p{font-size:13.5px;line-height:1.55;color:var(--slate);margin:0 0 6px;}
+  .tab-intro p:last-child{margin-bottom:0;}
+  .tab-intro strong{color:var(--navy);}
+
+  table.incident-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.incident-table th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:0.03em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);}
+  table.incident-table td{padding:9px 10px;border-bottom:1px solid var(--border);}
+  table.incident-table tr:last-child td{border-bottom:none;}
+  table.incident-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .sev-high{color:var(--red);font-weight:600;}
+  .sev-mid{color:var(--amber);font-weight:600;}
+
+  table.heatmap-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}
+  table.heatmap-table th{text-align:center;font-size:10.5px;color:var(--muted);padding:3px 2px 5px;font-weight:600;line-height:1.3;}
+  table.heatmap-table th.row-head{text-align:left;font-size:12px;color:var(--slate);}
+  table.heatmap-table th.week-group{font-size:10.5px;text-transform:uppercase;letter-spacing:0.03em;color:var(--navy);padding:0 2px 4px;border-bottom:1px solid var(--border);}
+  table.heatmap-table td{padding:2px;text-align:center;}
+  table.heatmap-table td.row-head{text-align:left;font-size:12px;color:var(--slate);padding:6px 8px 6px 0;white-space:nowrap;}
+  table.heatmap-table td.week-sep{padding:0;width:10px;}
+  .heat-cell{border-radius:5px;padding:5px 2px;font-weight:600;font-variant-numeric:tabular-nums;position:relative;line-height:1.25;}
+  .heat-cell .hc-pct{font-size:12px;}
+  .heat-cell .hc-count{font-size:9.5px;font-weight:400;opacity:0.85;}
+  .heat-cell.elevated::after{content:'\25B2';position:absolute;top:1px;right:2px;font-size:7px;color:#7A1F1F;}
+  .heat-legend{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--muted);margin-top:8px;}
+  .heat-swatch{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:3px;}
+
+  .notice-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600;}
+  .notice-Planned{background:var(--green-tint);color:var(--green);}
+  .notice-Unplanned{background:var(--amber-tint);color:var(--amber);}
+  .notice-Urgent{background:#FBE2E2;color:#C0392B;}
+  .notice-Unknown{background:var(--surface-2, #F2F1EC);color:var(--muted);}
+
+  footer{margin-top:36px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--border);padding-top:14px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div>
+      <h1>Workforce Attendance Dashboard</h1>
+      <div class="sub">Current week: <span id="curWeekLabel"></span> &middot; source: HR_Fact_Attendance.xlsx</div>
+    </div>
+    <div class="controls">
+      <select id="clientFilter"></select>
+      <select id="teamFilter"></select>
+    </div>
+  </header>
+
+  <nav id="tabNav"></nav>
+
+  <!-- OVERVIEW -->
+  <div class="page" id="page-overview">
+    <div class="section-title">Outcome metrics &mdash; current week</div>
+    <div class="grid grid-4" id="ov-kpis"></div>
+
+    <div class="section-title">Requests this week</div>
+    <div class="grid grid-3" id="ov-modules"></div>
+
+    <div class="section-title">Top flags this week</div>
+    <div class="card" id="ov-flags"></div>
+  </div>
+
+  <!-- ATTENDANCE QUALITY -->
+  <div class="page" id="page-attendance">
+    <div class="tab-intro" id="attendance-insight"></div>
+
+    <div class="section-title">Check-in behavior &mdash; current week</div>
+    <div class="grid grid-3" id="attendance-ci-kpis"></div>
+
+    <div class="section-title">Check-out behavior &mdash; current week</div>
+    <div class="grid grid-3" id="attendance-co-kpis"></div>
+
+    <div class="section-title">Trend</div>
+    <div class="grid grid-2" id="attendance-trend"></div>
+
+    <div class="section-title">Which teams are driving this</div>
+    <div class="grid grid-2" id="attendance-ranking"></div>
+
+    <div class="section-title">Average working hour by Team &amp; Customer</div>
+    <div class="grid grid-2" id="attendance-hours-breakdown"></div>
+
+    <div class="section-title">Top 10 employees by average working hour</div>
+    <div id="attendance-top-hours"></div>
+
+    <div class="section-title">Extensive staying-late incidents (&gt;90 min past standard hours)</div>
+    <p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px;" id="attendance-incidents-range"></p>
+    <div class="card" id="attendance-incidents"></div>
+  </div>
+
+  <!-- LEAVE -->
+  <div class="page" id="page-leave">
+    <div class="section-title">Leave &mdash; current week</div>
+    <div class="grid grid-4" id="leave-kpis"></div>
+    <div class="section-title">Trend</div>
+    <div class="grid grid-2" id="leave-trend"></div>
+    <div class="section-title">Leave concentration <span id="concentration-range-label" style="font-weight:400;color:var(--muted);font-size:12px;"></span></div>
+    <p style="font-size:12.5px;color:var(--muted);margin:-6px 0 10px;">The real leave risk isn't total volume \u2014 it's concentration: too much of one customer's headcount out at once, or clustering on one weekday versus the 4-week norm. This week and next, side by side. Hover a cell for the names behind the number; next week is a look-ahead based on requests submitted so far.</p>
+    <div class="card" id="leave-heatmap"></div>
+
+    <div class="section-title">Leave requests &mdash; current week detail</div>
+    <div class="card" id="leave-table-current"></div>
+
+    <div class="section-title">Leave requests &mdash; next week detail <span id="next-week-range-label2" style="font-weight:400;color:var(--muted);font-size:12px;"></span></div>
+    <div class="card" id="leave-table-next"></div>
+
+    <div class="section-title">Related flags</div>
+    <div class="card" id="leave-flags"></div>
+  </div>
+
+  <!-- OT & WFH -->
+  <div class="page" id="page-otwfh">
+    <div class="section-title">OT &amp; WFH &mdash; current week</div>
+    <div class="grid grid-4" id="otwfh-kpis"></div>
+    <div class="section-title">Trend</div>
+    <div class="grid grid-2" id="otwfh-trend"></div>
+
+    <div class="section-title">OT requests &mdash; detail</div>
+    <div class="card" id="ot-table"></div>
+
+    <div class="section-title">WFH requests &mdash; detail</div>
+    <div class="card" id="wfh-table"></div>
+
+    <div class="section-title">Related flags</div>
+    <div class="card" id="otwfh-flags"></div>
+  </div>
+
+  <!-- REQUESTS OPS -->
+  <div class="page" id="page-ops">
+    <div class="section-title">Late CI / Early CO, business trips, shift changes &mdash; current week</div>
+    <div class="grid grid-4" id="ops-kpis"></div>
+    <div class="section-title">Trend</div>
+    <div class="grid grid-2" id="ops-trend"></div>
+
+    <div class="section-title">Late CI / Early CO requests &mdash; detail</div>
+    <div class="card" id="ops-lcec-table"></div>
+
+    <div class="section-title">Business trips &mdash; detail</div>
+    <div class="card" id="ops-trip-table"></div>
+
+    <div class="section-title">Shift changes &mdash; detail</div>
+    <div class="card" id="ops-sc-table"></div>
+
+    <div class="section-title">Related flags</div>
+    <div class="card" id="ops-flags"></div>
+  </div>
+
+  <!-- RISK -->
+  <div class="page" id="page-risk">
+    <div class="section-title">All active flags &mdash; current week</div>
+    <div class="card" id="risk-flags"></div>
+  </div>
+
+  <footer>
+    Metrics computed from FACT_Attendance_Daily, Req_Leave, Req_OT, Req_WFh, Req_LCin&amp;ECout, Req_BusinessTrip, Req_ShiftChange and DIM_Employee.
+    Trend window is fixed at 4 weeks (current + 3 prior). Overwork = avg Delta &gt; +1.5 hr/day with no OT filed. Team filter applies across all tabs.
+    Adherence rate = SUM(actual working hours) / SUM(standard working hours), computed on FullWorkDay/HalfWorkDay records only (Type of Date column), i.e. leave and holiday days are excluded. Values above 100% mean actual hours exceeded standard on average.
+    Late CI profile and Early check-in signal are cross-checked against approved Req_LCin&amp;ECout requests \u2014 a late arrival or early check-in with a matching approved request is treated as explained.
+    Adrian (MTVN0059) and Chau Ha (MTVN0062) are excluded from every calculation on this dashboard.
+  </footer>
+</div>
+
+<script>
+let D = {};
+let teamScope = 'All Teams';
+let clientScope = 'All Clients';
+const charts = {};
+
+function fmtNum(n, d=1){ return Number(n).toLocaleString(undefined, {maximumFractionDigits:d}); }
+function scopeKey(){ return `${teamScope}||${clientScope}`; }
+
+// ---------- header / nav setup ----------
+document.getElementById('curWeekLabel').textContent = D.week_ranges[D.week_ranges.length-1];
+
+const teamSel = document.getElementById('teamFilter');
+const clientSel = document.getElementById('clientFilter');
+
+function populateSelect(sel, options, current){
+  sel.innerHTML = '';
+  options.forEach(o=>{
+    const opt = document.createElement('option'); opt.value=o; opt.textContent=o; sel.appendChild(opt);
+  });
+  sel.value = options.includes(current) ? current : options[0];
+}
+
+function refreshFilterOptions(){
+  // Team options depend on selected client; Client options depend on selected team.
+  const teamOptions = clientScope === 'All Clients'
+    ? D.teams
+    : ['All Teams'].concat(D.client_to_teams[clientScope] || []);
+  const clientOptions = teamScope === 'All Teams'
+    ? D.clients
+    : ['All Clients'].concat(D.team_to_clients[teamScope] || []);
+  populateSelect(teamSel, teamOptions, teamScope);
+  populateSelect(clientSel, clientOptions, clientScope);
+  teamScope = teamSel.value;
+  clientScope = clientSel.value;
+}
+
+refreshFilterOptions();
+
+teamSel.addEventListener('change', ()=>{
+  teamScope = teamSel.value;
+  refreshFilterOptions();
+  renderAll();
+});
+clientSel.addEventListener('change', ()=>{
+  clientScope = clientSel.value;
+  refreshFilterOptions();
+  renderAll();
+});
+
+const TABS = [
+  {id:'overview', label:'Overview'},
+  {id:'attendance', label:'Attendance Quality'},
+  {id:'leave', label:'Leave'},
+  {id:'otwfh', label:'OT & WFH'},
+  {id:'ops', label:'Requests ops'},
+  {id:'risk', label:'Risk'}
+];
+const nav = document.getElementById('tabNav');
+TABS.forEach((t,i)=>{
+  const el = document.createElement('div');
+  el.className = 'tab' + (i===0?' active':'');
+  el.textContent = t.label;
+  el.dataset.tab = t.id;
+  el.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('page-'+t.id).classList.add('active');
+  });
+  nav.appendChild(el);
+});
+document.getElementById('page-overview').classList.add('active');
+
+// ---------- helpers ----------
+function last(arr){ return arr[arr.length-1]; }
+function prev(arr){ return arr[arr.length-2]; }
+function pctChange(cur, pri){
+  if(pri === 0) return null;
+  return ((cur-pri)/Math.abs(pri))*100;
+}
+function trendNote(cur, pri, goodDir){
+  // goodDir: 'up' means higher current is good, 'down' means lower is good
+  const ch = pctChange(cur, pri);
+  if(ch === null || Math.abs(cur-pri) < 0.05) return {cls:'note-muted', text:'flat vs last wk'};
+  const rising = ch > 0;
+  const good = (goodDir==='up' && rising) || (goodDir==='down' && !rising);
+  const arrow = rising ? '\u2191' : '\u2193';
+  return {cls: good?'note-ok':'note-danger', text: `${arrow} ${fmtNum(Math.abs(ch),0)}% vs last wk`};
+}
+
+function adherenceNote(cur){
+  return cur >= 100
+    ? {cls:'note-ok', text:'at/above 100% benchmark'}
+    : {cls:'note-danger', text:`${fmtNum(100-cur)} pts below 100% benchmark`};
+}
+
+// Generates a McKinsey-style "so what" headline for a chart, stating the
+// takeaway rather than just the metric name.
+function adherenceInsight(values){
+  const cur = last(values), pri = prev(values);
+  const atOrAbove = cur >= 100;
+  const wasAtOrAbove = pri >= 100;
+  const gap = Math.abs(100 - cur);
+  let sentence;
+  if (atOrAbove){
+    sentence = `Adherence is at ${fmtNum(cur)}%, at or above the 100% benchmark \u2014 this confirms employees are meeting or exceeding standard working hours.`;
+  } else {
+    sentence = `Adherence is at ${fmtNum(cur)}%, ${fmtNum(gap)} points below the 100% benchmark \u2014 a shortfall against standard hours that reads as risk and is worth reviewing.`;
+  }
+  if (atOrAbove !== wasAtOrAbove){
+    sentence += atOrAbove ? ' This crossed back above benchmark this week.' : ' This dropped below benchmark this week.';
+  }
+  return sentence;
+}
+
+function adherenceRankInsight(rankedAsc){
+  if(!rankedAsc || rankedAsc.length===0) return 'No team data available for adherence rate.';
+  const worst = rankedAsc[0];
+  const belowBenchmark = rankedAsc.filter(r=>r.value < 100).length;
+  if (worst.value < 100){
+    return `${worst.team} is furthest below the 100% adherence benchmark at ${fmtNum(worst.value)}% \u2014 ${belowBenchmark} of ${rankedAsc.length} teams are currently under benchmark and carry that risk.`;
+  }
+  return `Every team is at or above the 100% adherence benchmark this week; ${worst.team} is closest to it at ${fmtNum(worst.value)}%.`;
+}
+
+function chartInsight(label, values, unit, goodDir){
+  const cur = last(values), first = values[0], pri = prev(values);
+  const span = Math.max(...values) - Math.min(...values);
+  const totalDiff = cur - first;
+  const wowDiff = cur - pri;
+  const flatBand = Math.max(span * 0.15, unit==='%' ? 0.6 : 0.3);
+  const isFlat = Math.abs(totalDiff) <= flatBand;
+
+  const dirWord = (d)=> d > 0 ? 'up' : (d < 0 ? 'down' : 'unchanged');
+  const goodness = (d)=> {
+    if (Math.abs(d) < 1e-6) return 'neutral';
+    const rising = d > 0;
+    return ((goodDir==='up' && rising) || (goodDir==='down' && !rising)) ? 'good' : 'bad';
+  };
+
+  if (isFlat){
+    return `${label} has held steady around ${fmtNum(cur)}${unit} for the past 4 weeks \u2014 no action needed here.`;
+  }
+  const totalGoodness = goodness(totalDiff);
+  const trendWord = totalGoodness==='good' ? 'improved' : (totalGoodness==='bad' ? 'worsened' : 'shifted');
+  let sentence = `${label} has ${trendWord}, moving from ${fmtNum(first)}${unit} to ${fmtNum(cur)}${unit} over 4 weeks`;
+  if (Math.abs(wowDiff) > flatBand * 0.4 && dirWord(wowDiff) !== dirWord(totalDiff)){
+    sentence += `, though it reversed direction this past week.`;
+  } else {
+    sentence += `.`;
+  }
+  return sentence;
+}
+
+function hBarRankChart(canvasId, items, unit, highlightTeam, color){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(charts[canvasId]) charts[canvasId].destroy();
+  const labels = items.map(i=>i.team);
+  const values = items.map(i=>i.value);
+  const colors = items.map(i=> i.team===highlightTeam ? '#1F3864' : color);
+  charts[canvasId] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: values, backgroundColor: colors,
+      datalabels:{ color:'#3d3d3a', anchor:'end', align:'end', font:{size:11,weight:600}, formatter:(v)=>fmtNum(v)+unit } }]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false, layout:{padding:{right:36}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{ enabled:true, callbacks:{
+          label: (ctx)=> `${fmtNum(ctx.parsed.x)}${unit}`,
+          afterLabel: (ctx)=>{
+            const item = items[ctx.dataIndex];
+            const emps = item && item.topEmployees;
+            if(!emps || emps.length===0) return '';
+            return ['Top employees:'].concat(emps.map(e=>`  \u2022 ${e.name}: ${fmtNum(e.value)}${unit}`));
+          }
+        }}
+      },
+      scales:{ x:{ beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#EDEBE3'} }, y:{ ticks:{font:{size:11}}, grid:{display:false} } }
+    }
+  });
+}
+
+function employeeRankChart(canvasId, items, unit, color){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(charts[canvasId]) charts[canvasId].destroy();
+  const labels = items.map(i=>`${i.name} (${i.team})`);
+  const values = items.map(i=>i.value);
+  charts[canvasId] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: values, backgroundColor: color,
+      datalabels:{ color:'#3d3d3a', anchor:'end', align:'end', font:{size:11,weight:600}, formatter:(v)=>fmtNum(v)+unit } }]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false, layout:{padding:{right:36}},
+      plugins:{ legend:{display:false}, tooltip:{enabled:true, callbacks:{ label:(ctx)=>`${fmtNum(ctx.parsed.x)}${unit}` }} },
+      scales:{ x:{ beginAtZero:false, ticks:{font:{size:11}}, grid:{color:'#EDEBE3'} }, y:{ ticks:{font:{size:11}}, grid:{display:false} } }
+    }
+  });
+}
+
+function teamRankInsight(rankedItems, metricLabel, unit, highIsBad){
+  if(!rankedItems || rankedItems.length===0) return `No team data available for ${metricLabel}.`;
+  const top = rankedItems[0];
+  const worstWord = highIsBad ? 'highest' : 'lowest';
+  return `${top.team} has the ${worstWord} ${metricLabel} this week, at ${fmtNum(top.value)}${unit} \u2014 worth a closer look if this persists.`;
+}
+
+function attendanceInsightHtml(s, teamScope, clientScope){
+  const lci = last(s.late_checkin_rate), lciP = prev(s.late_checkin_rate);
+  const adh = last(s.adherence_rate);
+  let scopeLabel;
+  if(teamScope==='All Teams' && clientScope==='All Clients') scopeLabel = 'Across all teams and customers';
+  else if(teamScope==='All Teams') scopeLabel = `For customer ${clientScope} (across teams)`;
+  else if(clientScope==='All Clients') scopeLabel = `For ${teamScope}`;
+  else scopeLabel = `For ${teamScope} \u00d7 ${clientScope}`;
+  const lciTrendWord = lci > lciP ? 'up from' : (lci < lciP ? 'down from' : 'unchanged from');
+
+  const lateTotal = last(s.late_ci_total);
+  const lateUnexpl = last(s.late_ci_unexplained);
+  const lateUnexplPct = lateTotal ? Math.round(100*lateUnexpl/lateTotal) : 0;
+
+  const coTotal = last(s.late_co_total);
+  const co30 = last(s.late_co_lt30), co90 = last(s.late_co_30to90), coOver = last(s.late_co_gt90);
+  const coOverPct = coTotal ? Math.round(100*coOver/coTotal) : 0;
+  const co30Pct = coTotal ? Math.round(100*co30/coTotal) : 0;
+  let coQualityLine;
+  if (coTotal === 0){
+    coQualityLine = `No staying-late instances were recorded this week.`;
+  } else if (coOverPct >= 15){
+    coQualityLine = `${coOverPct}% of staying-late instances ran past 90 minutes \u2014 an early signal of burnout risk or a workflow bottleneck worth checking.`;
+  } else if (co30Pct >= 60){
+    coQualityLine = `${co30Pct}% of staying-late instances are under 30 minutes, which reads as healthy \u2014 people wrapping up naturally rather than routinely overrunning.`;
+  } else {
+    coQualityLine = `Most staying-late instances fall in the 30\u201390 minute range, a typical pattern worth monitoring rather than acting on.`;
+  }
+
+  const eciTotal = last(s.early_ci_signal_count);
+  const eciUnexpl = last(s.early_ci_unexplained_count);
+
+  return `
+    <p><strong>${scopeLabel} this week</strong>, ${fmtNum(lci)}% of check-ins were more than ${D.late_ci_threshold||5} minutes late (${lciTrendWord} ${fmtNum(lciP)}% last week). Of ${lateTotal} late check-ins, ${lateUnexpl} (${lateUnexplPct}%) have no matching approved Late CI/Early CO request \u2014 that's the group worth a closer look, not the full total.</p>
+    <p>${coQualityLine}</p>
+    <p>${eciTotal} early check-ins were logged (>${D.late_ci_threshold||5} min early); this isn't a problem by default \u2014 treat it as a signal to ask why. ${eciUnexpl} of them have no same-day approved request on file, so that's where a conversation would be most useful. Adherence \u2014 actual hours worked as a share of standard hours, excluding leave/holiday days \u2014 sits at <strong>${fmtNum(adh)}%</strong> against a 100% benchmark (${adh>=100 ? 'at/above benchmark, confirming compliance' : 'below benchmark, signalling risk'}).</p>
+  `;
+}
+
+function lateCIProfileInsight(s){
+  const total = last(s.late_ci_total);
+  const unexpl = last(s.late_ci_unexplained);
+  if(total === 0) return 'No late check-ins were recorded this week.';
+  const gt10 = last(s.late_ci_gt10);
+  const gt10Pct = Math.round(100*gt10/total);
+  const unexplPct = Math.round(100*unexpl/total);
+  return `${gt10Pct}% of this week's late check-ins ran over 10 minutes, and ${unexplPct}% of late check-ins over ${D.late_ci_threshold||5} minutes have no matching approved request \u2014 that combination is the real signal, not the raw late-arrival count.`;
+}
+
+function lateCOProfileInsight(s){
+  const total = last(s.late_co_total);
+  if(total === 0) return 'No staying-late instances were recorded this week.';
+  const over90 = last(s.late_co_gt90), lt30 = last(s.late_co_lt30);
+  const over90Pct = Math.round(100*over90/total), lt30Pct = Math.round(100*lt30/total);
+  if(over90Pct >= 15) return `${over90Pct}% of staying-late instances exceeded 90 minutes this week \u2014 concentration here points to burnout risk or a workflow bottleneck, not just occasional overrun.`;
+  if(lt30Pct >= 60) return `${lt30Pct}% of staying-late instances stayed under 30 minutes \u2014 data concentrated at the low end reads as good quality.`;
+  return `Staying-late instances are spread across the 30\u201390 minute band this week \u2014 a usual, not alarming, pattern.`;
+}
+
+function earlyCIInsight(s){
+  const total = last(s.early_ci_signal_count);
+  const unexpl = last(s.early_ci_unexplained_count);
+  if(total === 0) return 'No early check-ins were recorded this week.';
+  const unexplPct = Math.round(100*unexpl/total);
+  return `Early check-in isn't inherently good or bad \u2014 it's a prompt to ask why. ${unexplPct}% of this week's early check-ins have no same-day approved request, so start there if you want to understand the driver (workload, commute, personal preference).`;
+}
+function leaveCategoryInsight(s){
+  const planned = last(s.leave_planned_days), unplanned = last(s.leave_unplanned_days), urgent = last(s.leave_urgent_days);
+  const total = planned + unplanned + urgent;
+  if(total === 0) return 'No leave was requested this week for this scope.';
+  const urgentShare = (urgent/total)*100;
+  if(urgentShare >= 40){
+    return `Urgent leave (\u22642 days notice) makes up ${fmtNum(urgentShare,0)}% of this week's leave days \u2014 a high share that limits planning time for coverage.`;
+  }
+  const plannedShare = (planned/total)*100;
+  return `Planned leave (>30 days notice) accounts for ${fmtNum(plannedShare,0)}% of this week's leave days, keeping most absences predictable for coverage planning.`;
+}
+
+function otSplitInsight(s){
+  const wknd = last(s.ot_weekend_hours), wkday = last(s.ot_weekday_hours);
+  const total = wknd + wkday;
+  if(total === 0) return 'No OT was logged this week for this scope.';
+  const wkndShare = (wknd/total)*100;
+  if(wkndShare >= 50){
+    return `Weekend OT makes up ${fmtNum(wkndShare,0)}% of this week's OT hours \u2014 worth checking whether this reflects planned weekend coverage or reactive overload.`;
+  }
+  return `Weekday after-shift OT drives ${fmtNum(100-wkndShare,0)}% of this week's OT hours, suggesting workload is spilling past scheduled shifts rather than requiring weekend coverage.`;
+}
+
+function sparklineSvg(values, color, w=150, h=32){
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max-min) || 1;
+  const pad = 3;
+  const step = (w - pad*2) / (values.length-1);
+  const pts = values.map((v,i)=>{
+    const x = pad + i*step;
+    const y = pad + (1 - (v-min)/range) * (h - pad*2);
+    return [x,y];
+  });
+  const path = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length-1];
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.5" fill="${color}"/>
+  </svg>`;
+}
+
+function kpiCard(label, value, note, sparkValues, sparkColor){
+  const d = document.createElement('div');
+  d.className = 'card';
+  const spark = sparkValues ? sparklineSvg(sparkValues, sparkColor||'#1F3864') : '';
+  d.innerHTML = `<p class="kpi-label">${label}</p><p class="kpi-value">${value}</p>${note?`<p class="kpi-note ${note.cls}">${note.text}</p>`:''}${spark}`;
+  return d;
+}
+function moduleCard(icon, label, value, note, sparkValues, sparkColor){
+  const d = document.createElement('div');
+  d.className = 'module-card';
+  const spark = sparkValues ? sparklineSvg(sparkValues, sparkColor||'#1F3864', 130, 28) : '';
+  d.innerHTML = `<div class="module-head">${label}</div><p class="module-value">${value}</p>${note?`<p class="module-note">${note}</p>`:''}${spark}`;
+  return d;
+}
+function flagBadge(sev){ return sev==='danger' ? 'badge-danger' : 'badge-warn'; }
+function renderFlagList(container, items){
+  container.innerHTML = '';
+  if(!items || items.length===0){
+    container.innerHTML = '<div class="empty">No flags for this scope this week.</div>';
+    return;
+  }
+  items.forEach(it=>{
+    const row = document.createElement('div');
+    row.className = 'flag-row';
+    row.innerHTML = `<span class="flag-text">${it.text}</span><span class="badge ${flagBadge(it.severity)}">${it.type}</span>`;
+    container.appendChild(row);
+  });
+}
+
+function escHtml(v){
+  return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function noticeBadge(cat){
+  const safeCat = ['Planned','Unplanned','Urgent'].includes(cat) ? cat : 'Unknown';
+  return {__html: `<span class="notice-badge notice-${safeCat}">${safeCat}</span>`};
+}
+
+function renderGenericTable(container, headers, rows, emptyMsg){
+  container.innerHTML = '';
+  if(!rows || rows.length===0){
+    container.innerHTML = `<div class="empty">${emptyMsg || 'No records for this scope this week.'}</div>`;
+    return;
+  }
+  const cellHtml = c => (c && typeof c==='object' && '__html' in c) ? c.__html : escHtml(c);
+  const thead = '<tr>' + headers.map(h=>`<th>${h}</th>`).join('') + '</tr>';
+  const tbody = rows.map(r=>'<tr>' + r.map(c=>`<td>${cellHtml(c)}</td>`).join('') + '</tr>').join('');
+  const table = document.createElement('table');
+  table.className = 'incident-table';
+  table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+  container.appendChild(table);
+}
+
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', {
+  color:'#3d3d3a', font:{size:11, weight:600}, align:'top', anchor:'end',
+  formatter:(v)=> typeof v==='number' ? fmtNum(v) : v
+});
+
+function lineChart(canvasId, labels, values, color){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[{ data: values, borderColor: color, backgroundColor: color, tension:0.3, pointRadius:4, borderWidth:2, datalabels:{color: color} }]},
+    options:{
+      responsive:true, maintainAspectRatio:false, layout:{padding:{top:18}},
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(c)=>fmtNum(c.parsed.y) } } },
+      scales:{ y:{ beginAtZero:false, ticks:{font:{size:11}}, grid:{color:'#EDEBE3'} }, x:{ ticks:{font:{size:11}}, grid:{display:false} } }
+    }
+  });
+}
+
+function comboChart(canvasId, labels, barValues, barLabel, barColor, lineValues, lineLabel, lineColor){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(ctx, {
+    data:{
+      labels,
+      datasets:[
+        { type:'bar', label: barLabel, data: barValues, backgroundColor: barColor, yAxisID:'y', order:2,
+          datalabels:{ color:'#fff', anchor:'center', align:'center', font:{size:11,weight:600} } },
+        { type:'line', label: lineLabel, data: lineValues, borderColor: lineColor, backgroundColor: lineColor,
+          tension:0.3, pointRadius:4, borderWidth:2, yAxisID:'y1', order:1,
+          datalabels:{ color: lineColor, align:'top', anchor:'end' } }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, layout:{padding:{top:18}},
+      plugins:{ legend:{display:true, position:'bottom', labels:{boxWidth:10,font:{size:11}}}, tooltip:{enabled:true} },
+      scales:{
+        y:{ beginAtZero:true, position:'left', ticks:{font:{size:11}}, grid:{color:'#EDEBE3'}, title:{display:true, text:barLabel, font:{size:11}} },
+        y1:{ beginAtZero:true, position:'right', ticks:{font:{size:11}}, grid:{display:false}, title:{display:true, text:lineLabel, font:{size:11}} },
+        x:{ ticks:{font:{size:11}}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function denomText(recordCount, employeeCount, recordLabel){
+  return ` \u2014 aligned with ${fmtNum(recordCount,0)} ${recordLabel} across ${fmtNum(employeeCount,0)} employees`;
+}
+
+function teamsForClient(client){
+  return client === 'All Clients' ? D.teams.filter(t=>t!=='All Teams') : (D.client_to_teams[client] || []);
+}
+function customersForTeam(team){
+  return team === 'All Teams' ? D.clients.filter(c=>c!=='All Clients') : (D.team_to_clients[team] || []);
+}
+
+function categoryComboCard(container, title, labels, hourValues, empValues, insightText, canvasId){
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-card';
+  wrap.innerHTML = `<p class="chart-insight">${insightText}</p><p class="chart-meta">${title}</p><canvas id="${canvasId}" height="240"></canvas>`;
+  container.appendChild(wrap);
+  comboChart(canvasId, labels, hourValues, 'Avg working hour', '#185FA5', empValues, 'Employees', '#3C3489');
+}
+
+function hoursBreakdownInsight(rows, dimLabel){
+  const withData = rows.filter(r=>r.hours>0);
+  if(withData.length===0) return `No working-hour data available by ${dimLabel} for this scope this week.`;
+  const top = [...withData].sort((a,b)=>b.hours-a.hours)[0];
+  return `${top.label} runs highest at ${fmtNum(top.hours,2)}h average working hours this week across ${top.emp} employees \u2014 worth a look if that's a sustained pattern rather than a one-off.`;
+}
+
+function trendCard(gridEl, label, values, color, canvasId, unit='', goodDir='up', extraMeta=''){
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-card';
+  const insight = chartInsight(label, values, unit, goodDir);
+  wrap.innerHTML = `<p class="chart-insight">${insight}</p><p class="chart-meta">${label} \u00b7 current: ${fmtNum(last(values))}${unit}${extraMeta}</p><canvas id="${canvasId}" height="180"></canvas>`;
+  gridEl.appendChild(wrap);
+  lineChart(canvasId, D.week_ranges, values, color);
+}
+
+function trendCardCustom(gridEl, label, values, color, canvasId, unit, insightText, extraMeta=''){
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-card';
+  wrap.innerHTML = `<p class="chart-insight">${insightText}</p><p class="chart-meta">${label} \u00b7 current: ${fmtNum(last(values))}${unit}${extraMeta}</p><canvas id="${canvasId}" height="180"></canvas>`;
+  gridEl.appendChild(wrap);
+  lineChart(canvasId, D.week_ranges, values, color);
+}
+
+function comboTrendCard(gridEl, label, barValues, barLabel, barColor, lineValues, lineLabel, lineColor, canvasId, unit='', goodDir='up'){
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-card';
+  const insight = chartInsight(label, barValues, unit, goodDir);
+  wrap.innerHTML = `<p class="chart-insight">${insight}</p><p class="chart-meta">Current: ${fmtNum(last(barValues))} ${barLabel.toLowerCase()} \u00b7 ${fmtNum(last(lineValues),0)} ${lineLabel.toLowerCase()}</p><canvas id="${canvasId}" height="180"></canvas>`;
+  gridEl.appendChild(wrap);
+  comboChart(canvasId, D.week_ranges, barValues, barLabel, barColor, lineValues, lineLabel, lineColor);
+}
+
+function comboTrendCardCustom(gridEl, label, insightText, barValues, barLabel, barColor, lineValues, lineLabel, lineColor, canvasId){
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-card';
+  wrap.innerHTML = `<p class="chart-insight">${insightText}</p><p class="chart-meta">Current: ${fmtNum(last(barValues))} ${barLabel.toLowerCase()} \u00b7 ${fmtNum(last(lineValues),0)} ${lineLabel.toLowerCase()}</p><canvas id="${canvasId}" height="180"></canvas>`;
+  gridEl.appendChild(wrap);
+  comboChart(canvasId, D.week_ranges, barValues, barLabel, barColor, lineValues, lineLabel, lineColor);
+}
+
+// ---- Leave concentration heatmap (customer x weekday, current week) ----
+function heatColor(pct){
+  if(pct <= 0) return '#F2F1EC';
+  if(pct < 15) return '#DCEFE3';
+  if(pct < 30) return '#F5D9A8';
+  if(pct < 50) return '#F0A868';
+  return '#E08080';
+}
+function heatTextColor(pct){
+  return pct >= 30 ? '#5A1F1F' : '#3d3d3a';
+}
+
+function leaveHeatmapRows(calendarMap){
+  // Returns [{label, key}] rows to display based on current Team/Client filter.
+  let raw;
+  if(clientScope !== 'All Clients'){
+    raw = [{label: clientScope, key: `${teamScope}||${clientScope}`}];
+  } else if(teamScope !== 'All Teams'){
+    const customers = D.team_to_clients[teamScope] || [];
+    raw = customers.map(c=>({label:c, key:`${teamScope}||${c}`}));
+  } else {
+    raw = D.clients.map(c=>({label:c, key:`All Teams||${c}`}));
+  }
+  return raw.filter(r=>{
+    const cal = calendarMap[r.key];
+    return cal && cal.headcount > 0;
+  });
+}
+
+function leaveConcentrationInsight(rows, calendarMap){
+  let worst = null;
+  rows.forEach(r=>{
+    const cal = calendarMap[r.key];
+    if(!cal || cal.headcount === 0) return;
+    cal.days.forEach(d=>{
+      if(!worst || d.pct > worst.pct){
+        worst = {...d, rowLabel: r.label};
+      }
+    });
+  });
+  const elevatedDay = rows.map(r=>{
+    const cal = calendarMap[r.key];
+    if(!cal) return null;
+    return cal.days.find(d=>d.elevated);
+  }).find(x=>x);
+
+  if(!worst || worst.pct === 0){
+    return 'No leave concentration risk detected for this scope \u2014 headcount out on any single day stays low relative to roster size.';
+  }
+  let sentence;
+  if(worst.pct >= 50){
+    sentence = `${worst.rowLabel}: ${fmtNum(worst.pct)}% of headcount (${worst.on_leave_count} of ${worst.total_headcount}) is on leave ${worst.weekday} ${worst.date} \u2014 a resourcing shortfall risk if this wasn't planned for.`;
+  } else if(worst.pct >= 25){
+    sentence = `${worst.rowLabel} has ${fmtNum(worst.pct)}% of headcount (${worst.on_leave_count} of ${worst.total_headcount}) out on ${worst.weekday} ${worst.date} \u2014 worth confirming coverage is arranged.`;
+  } else {
+    sentence = `Headcount concentration stays modest; the highest is ${worst.rowLabel} at ${fmtNum(worst.pct)}% (${worst.on_leave_count} of ${worst.total_headcount}) on ${worst.weekday} ${worst.date}.`;
+  }
+  if(elevatedDay){
+    sentence += ` Separately, ${elevatedDay.weekday} leave-taking is running well above its 4-week average (${elevatedDay.on_leave_count} vs ${fmtNum(elevatedDay.avg_prior_weeks)} typical) \u2014 a day-of-week clustering pattern worth a look.`;
+  }
+  return sentence;
+}
+
+function renderLeaveHeatmapCombined(container, curMap, nextMap, rows){
+  container.innerHTML = '';
+
+  const insightP = document.createElement('p');
+  insightP.className = 'chart-insight';
+  insightP.style.marginBottom = '12px';
+  const curInsight = leaveConcentrationInsight(rows, curMap);
+  const nextTopRow = rows.find(r=>nextMap[r.key] && nextMap[r.key].headcount>0 && nextMap[r.key].days.some(d=>d.pct>0));
+  insightP.textContent = nextTopRow
+    ? `${curInsight} Looking ahead, next week already shows leave concentration building \u2014 check the right-hand columns below.`
+    : curInsight;
+  container.appendChild(insightP);
+
+  const rowsWithData = rows.filter(r=>(curMap[r.key] && curMap[r.key].headcount>0) || (nextMap[r.key] && nextMap[r.key].headcount>0));
+  if(rowsWithData.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No customers with active headcount in this scope.';
+    container.appendChild(empty);
+    return;
+  }
+
+  const curDays = curMap[rowsWithData[0].key].days;
+  const nextDays = nextMap[rowsWithData[0].key].days;
+  const dayHeader = d=>`${d.weekday}<br><span style="font-weight:400;color:var(--muted)">${d.date}</span>`;
+  let thead = '<tr><th></th><th colspan="5" class="week-group">This week</th><th class="week-sep"></th><th colspan="5" class="week-group">Next week</th></tr>';
+  thead += '<tr><th class="row-head">Customer</th>' + curDays.map(dayHeader).map(h=>`<th>${h}</th>`).join('') + '<th class="week-sep"></th>' + nextDays.map(dayHeader).map(h=>`<th>${h}</th>`).join('') + '</tr>';
+
+  function cellHtml(r, d){
+    if(!d) return '<td></td>';
+    const bg = heatColor(d.pct);
+    const fg = heatTextColor(d.pct);
+    const elevCls = d.elevated ? ' elevated' : '';
+    const namesLine = d.employees && d.employees.length ? `\nOn leave: ${d.employees.join(', ')}` : '\nNo one on leave';
+    const title = `${r.label} \u2014 ${d.weekday} ${d.date}\n${d.on_leave_count} of ${d.total_headcount} on leave (${fmtNum(d.pct)}%)\n4-wk avg for ${d.weekday}: ${fmtNum(d.avg_prior_weeks)}${namesLine}`;
+    return `<td><div class="heat-cell${elevCls}" style="background:${bg};color:${fg}" title="${title}">
+      <div class="hc-pct">${fmtNum(d.pct)}%</div>
+      <div class="hc-count">${d.on_leave_count}/${d.total_headcount}</div>
+    </div></td>`;
+  }
+
+  let tbody = '';
+  rowsWithData.forEach(r=>{
+    const curCal = curMap[r.key], nextCal = nextMap[r.key];
+    const hc = (curCal && curCal.headcount) || (nextCal && nextCal.headcount) || 0;
+    tbody += `<tr><td class="row-head">${r.label} <span style="color:var(--muted);font-weight:400">(${hc})</span></td>`;
+    (curCal ? curCal.days : Array(5).fill(null)).forEach(d=>{ tbody += cellHtml(r, d); });
+    tbody += '<td class="week-sep"></td>';
+    (nextCal ? nextCal.days : Array(5).fill(null)).forEach(d=>{ tbody += cellHtml(r, d); });
+    tbody += '</tr>';
+  });
+
+  const table = document.createElement('table');
+  table.className = 'heatmap-table';
+  table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+  container.appendChild(table);
+
+  const legend = document.createElement('div');
+  legend.className = 'heat-legend';
+  legend.innerHTML = `
+    <span><span class="heat-swatch" style="background:${heatColor(0)}"></span>0%</span>
+    <span><span class="heat-swatch" style="background:${heatColor(10)}"></span>&lt;15%</span>
+    <span><span class="heat-swatch" style="background:${heatColor(20)}"></span>15\u201330%</span>
+    <span><span class="heat-swatch" style="background:${heatColor(40)}"></span>30\u201350%</span>
+    <span><span class="heat-swatch" style="background:${heatColor(60)}"></span>\u226550%</span>
+    <span style="margin-left:8px;">\u25B2 = well above 4-wk average for that weekday</span>
+  `;
+  container.appendChild(legend);
+}
+
+function stackedTrendCard(gridEl, label, insightText, curSummary, series, canvasId){
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-card';
+  wrap.innerHTML = `<p class="chart-insight">${insightText}</p><p class="chart-meta">${label} \u00b7 current: ${curSummary}</p><canvas id="${canvasId}" height="180"></canvas>`;
+  gridEl.appendChild(wrap);
+  stackedBarChart(canvasId, D.week_ranges, series);
+}
+
+function stackedBarChart(canvasId, labels, series){
+  // series: [{data, label, color}, ...]
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets: series.map(s=>({
+      label: s.label, data: s.data, backgroundColor: s.color, stack:'stack1',
+      datalabels:{
+        color:'#fff', font:{size:10,weight:600},
+        align:'center', anchor:'center',
+        display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0,
+        formatter:(v)=> fmtNum(v,0)
+      }
+    }))},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:true, position:'bottom', labels:{boxWidth:10,font:{size:11}}}, tooltip:{enabled:true} },
+      scales:{ x:{ stacked:true, ticks:{font:{size:11}}, grid:{display:false} }, y:{ stacked:true, beginAtZero:true, ticks:{font:{size:11}}, grid:{color:'#EDEBE3'} } }
+    }
+  });
+}
+
+// ---------- render ----------
+function renderAll(){
+  const key = scopeKey();
+  const s = D.data[key];
+  const flags = D.flags[key] || [];
+
+  // === Overview ===
+  const ovK = document.getElementById('ov-kpis'); ovK.innerHTML = '';
+  ovK.appendChild(kpiCard('Attendance quality', fmtNum(last(s.attendance_quality))+'%', trendNote(last(s.attendance_quality), prev(s.attendance_quality), 'up'), s.attendance_quality, '#0F6E56'));
+  ovK.appendChild(kpiCard(`Late check-in rate (>${D.late_ci_threshold||5}min)`, fmtNum(last(s.late_checkin_rate))+'%', trendNote(last(s.late_checkin_rate), prev(s.late_checkin_rate), 'down'), s.late_checkin_rate, '#EF9F27'));
+  ovK.appendChild(kpiCard('Average working hour', fmtNum(last(s.avg_working_hours),2)+' h', trendNote(last(s.avg_working_hours), prev(s.avg_working_hours), 'up'), s.avg_working_hours, '#185FA5'));
+  ovK.appendChild(kpiCard(`Extensive late working (>${D.extensive_hours_threshold||9.5}h)`, last(s.extensive_late_count), trendNote(last(s.extensive_late_count), prev(s.extensive_late_count), 'down'), s.extensive_late_count, '#D14520'));
+  ovK.appendChild(kpiCard('Adherence rate (actual/standard hrs)', fmtNum(last(s.adherence_rate))+'%', adherenceNote(last(s.adherence_rate)), s.adherence_rate, '#3B6D11'));
+  ovK.appendChild(kpiCard(`Overwork employees (>${D.overwork_threshold||1.5}h/day vs standard)`, last(s.overwork_employees)+' emp.', trendNote(last(s.overwork_employees), prev(s.overwork_employees), 'down'), s.overwork_employees, '#854F0B'));
+
+  const ovM = document.getElementById('ov-modules'); ovM.innerHTML = '';
+  ovM.appendChild(moduleCard('','Leave', fmtNum(last(s.leave_days))+' days', fmtNum(last(s.leave_approval))+'% approved \u00b7 '+last(s.leave_headcount)+' people', s.leave_days, '#534AB7'));
+  ovM.appendChild(moduleCard('','OT', fmtNum(last(s.ot_hours))+' hrs', fmtNum(last(s.ot_weekend_hours))+' hrs weekend', s.ot_hours, '#D85A30'));
+  ovM.appendChild(moduleCard('','WFH', last(s.wfh_days)+' days', '', s.wfh_days, '#185FA5'));
+  ovM.appendChild(moduleCard('','Late CI / Early CO', last(s.lc_ec_events)+' events', '', s.lc_ec_events, '#993C1D'));
+  ovM.appendChild(moduleCard('','Business trip', last(s.trip_count)+' trips', '', s.trip_count, '#0F6E56'));
+  ovM.appendChild(moduleCard('','Shift change', last(s.sc_count)+' requests', '', s.sc_count, '#5F5E5A'));
+
+  renderFlagList(document.getElementById('ov-flags'), flags.slice(0,5));
+
+  // === Trends ===
+  // === Attendance Quality ===
+  const aiEl = document.getElementById('attendance-insight');
+  aiEl.innerHTML = attendanceInsightHtml(s, teamScope, clientScope);
+
+  const aciK = document.getElementById('attendance-ci-kpis'); aciK.innerHTML = '';
+  aciK.appendChild(kpiCard(`Late check-in rate (>${D.late_ci_threshold||5}min)`, fmtNum(last(s.late_checkin_rate))+'%', trendNote(last(s.late_checkin_rate), prev(s.late_checkin_rate), 'down'), s.late_checkin_rate, '#EF9F27'));
+  aciK.appendChild(kpiCard('Late CI unexplained', last(s.late_ci_unexplained)+' / '+last(s.late_ci_total), trendNote(last(s.late_ci_unexplained), prev(s.late_ci_unexplained), 'down'), s.late_ci_unexplained, '#993C1D'));
+  aciK.appendChild(kpiCard('Early check-in signal', last(s.early_ci_signal_count), {cls:'note-muted', text: last(s.early_ci_unexplained_count)+' with no matching request'}, s.early_ci_signal_count, '#0F6E56'));
+
+  const acoK = document.getElementById('attendance-co-kpis'); acoK.innerHTML = '';
+  acoK.appendChild(kpiCard(`Early check-out rate (>${D.late_ci_threshold||5}min)`, fmtNum(last(s.early_checkout_rate))+'%', trendNote(last(s.early_checkout_rate), prev(s.early_checkout_rate), 'down'), s.early_checkout_rate, '#D14520'));
+  acoK.appendChild(kpiCard('Staying-late >90min', last(s.late_co_gt90), trendNote(last(s.late_co_gt90), prev(s.late_co_gt90), 'down'), s.late_co_gt90, '#A32D2D'));
+  acoK.appendChild(kpiCard('Adherence rate (actual/standard hrs)', fmtNum(last(s.adherence_rate))+'%', adherenceNote(last(s.adherence_rate)), s.adherence_rate, '#3B6D11'));
+
+  const at = document.getElementById('attendance-trend'); at.innerHTML = '';
+  trendCard(at, `Late check-in rate (>${D.late_ci_threshold||5}min)`, s.late_checkin_rate, '#EF9F27', 'chart-at-lcr', '%', 'down', denomText(last(s.work_record_count), last(s.work_employee_count), 'working days'));
+  trendCard(at, `Early check-out rate (>${D.late_ci_threshold||5}min)`, s.early_checkout_rate, '#D14520', 'chart-at-eco', '%', 'down', denomText(last(s.work_record_count), last(s.work_employee_count), 'working days'));
+  trendCardCustom(at, 'Adherence rate (actual/standard hrs)', s.adherence_rate, '#3B6D11', 'chart-at-adh', '%', adherenceInsight(s.adherence_rate), denomText(last(s.work_record_count), last(s.work_employee_count), 'working days'));
+
+  stackedTrendCard(at, 'Late check-in profile (minutes late)', lateCIProfileInsight(s),
+    `${last(s.late_ci_le5)} \u2264 5min \u00b7 ${last(s.late_ci_5to10)} 5\u201310min \u00b7 ${last(s.late_ci_gt10)} >10min`,
+    [
+      {label:'\u2264 5 min', data:s.late_ci_le5, color:'#F5C87A'},
+      {label:'5\u201310 min', data:s.late_ci_5to10, color:'#EF9F27'},
+      {label:'>10 min', data:s.late_ci_gt10, color:'#993C1D'}
+    ], 'chart-lci-profile');
+
+  stackedTrendCard(at, 'Staying-late profile (minutes past standard hours)', lateCOProfileInsight(s),
+    `${last(s.late_co_lt30)} <30min \u00b7 ${last(s.late_co_30to90)} 30\u201390min \u00b7 ${last(s.late_co_gt90)} >90min`,
+    [
+      {label:'<30 min (good)', data:s.late_co_lt30, color:'#3B6D11'},
+      {label:'30\u201390 min (usual)', data:s.late_co_30to90, color:'#854F0B'},
+      {label:'>90 min (burnout signal)', data:s.late_co_gt90, color:'#A32D2D'}
+    ], 'chart-lco-profile');
+
+  stackedTrendCard(at, 'Early check-in signal: explained vs unexplained', earlyCIInsight(s),
+    `${last(s.early_ci_explained_count)} explained \u00b7 ${last(s.early_ci_unexplained_count)} unexplained`,
+    [
+      {label:'Matches approved request', data:s.early_ci_explained_count, color:'#0F6E56'},
+      {label:'No matching request', data:s.early_ci_unexplained_count, color:'#B7D8CC'}
+    ], 'chart-eci-signal');
+
+  const ar = document.getElementById('attendance-ranking'); ar.innerHTML = '';
+  const rankLCI = document.createElement('div');
+  rankLCI.className = 'chart-card';
+  rankLCI.innerHTML = `<p class="chart-insight">${teamRankInsight(D.team_ranking.late_checkin_rate, 'late check-in rate', '%', true)}</p><p class="chart-meta">Late check-in rate by team, current week</p><canvas id="chart-rank-lci" height="260"></canvas>`;
+  ar.appendChild(rankLCI);
+  const clientRanking = D.team_ranking[clientScope] || D.team_ranking['All Clients'];
+  hBarRankChart('chart-rank-lci', clientRanking.late_checkin_rate.slice(0,8), '%', teamScope, '#EF9F27');
+
+  const rankAdh = document.createElement('div');
+  rankAdh.className = 'chart-card';
+  const adhSortedAsc = [...clientRanking.adherence_rate].sort((a,b)=>a.value-b.value);
+  rankAdh.innerHTML = `<p class="chart-insight">${adherenceRankInsight(adhSortedAsc)}</p><p class="chart-meta">Adherence rate by team, current week \u2014 actual/standard hours; 100% = benchmark, hover for employee detail</p><canvas id="chart-rank-adh" height="260"></canvas>`;
+  ar.appendChild(rankAdh);
+  hBarRankChart('chart-rank-adh', adhSortedAsc.slice(0,8), '%', teamScope, '#3B6D11');
+
+  const ahb = document.getElementById('attendance-hours-breakdown'); ahb.innerHTML = '';
+  const teamRows = teamsForClient(clientScope).map(t=>{
+    const d = D.data[`${t}||${clientScope}`];
+    return {label: t, hours: d ? last(d.avg_working_hours) : 0, emp: d ? last(d.work_employee_count) : 0};
+  }).filter(r=>r.emp>0);
+  categoryComboCard(ahb, 'Average working hour by Team, current week',
+    teamRows.map(r=>r.label), teamRows.map(r=>r.hours), teamRows.map(r=>r.emp),
+    hoursBreakdownInsight(teamRows, 'team'), 'chart-hours-by-team');
+
+  const custRows = customersForTeam(teamScope).map(c=>{
+    const d = D.data[`${teamScope}||${c}`];
+    return {label: c, hours: d ? last(d.avg_working_hours) : 0, emp: d ? last(d.work_employee_count) : 0};
+  }).filter(r=>r.emp>0);
+  categoryComboCard(ahb, 'Average working hour by Customer, current week',
+    custRows.map(r=>r.label), custRows.map(r=>r.hours), custRows.map(r=>r.emp),
+    hoursBreakdownInsight(custRows, 'customer'), 'chart-hours-by-customer');
+
+  const ath = document.getElementById('attendance-top-hours'); ath.innerHTML = '';
+  const topHoursItems = D.top_avg_working_hours[key] || [];
+  const topHoursWrap = document.createElement('div');
+  topHoursWrap.className = 'chart-card';
+  const topHoursInsight = topHoursItems.length
+    ? `${topHoursItems[0].name} logged the highest average working hours this week at ${fmtNum(topHoursItems[0].value)}h/day \u2014 worth checking whether this reflects workload spikes or a sustained pattern.`
+    : 'No attendance data available for this scope this week.';
+  topHoursWrap.innerHTML = `<p class="chart-insight">${topHoursInsight}</p><p class="chart-meta">Average working hours per day, current week</p><canvas id="chart-top-hours" height="280"></canvas>`;
+  ath.appendChild(topHoursWrap);
+  if(topHoursItems.length) employeeRankChart('chart-top-hours', topHoursItems, 'h', '#185FA5');
+
+  document.getElementById('attendance-incidents-range').textContent =
+    `Across the full 4-week window (${D.week_ranges[0]} \u2013 ${D.week_ranges[D.week_ranges.length-1]}), not just the current week.`;
+  const incidentsEl = document.getElementById('attendance-incidents');
+  const incidents = D.extensive_late_incidents[key] || [];
+  if(incidents.length === 0){
+    incidentsEl.innerHTML = '<div class="empty">No staying-late incidents over 90 minutes in this 4-week window for this scope.</div>';
+  } else {
+    const rows = incidents.map(r=>{
+      const sevCls = r.late_co_mins > 180 ? 'sev-high' : 'sev-mid';
+      return `<tr>
+        <td>${r.name}</td>
+        <td>${r.team}</td>
+        <td>${r.date}</td>
+        <td class="num">${r.checkout_time}</td>
+        <td class="num">${fmtNum(r.working_hours,2)}h</td>
+        <td class="num ${sevCls}">+${fmtNum(r.late_co_mins,0)} min</td>
+      </tr>`;
+    }).join('');
+    incidentsEl.innerHTML = `<table class="incident-table">
+      <thead><tr><th>Employee</th><th>Team</th><th>Date</th><th style="text-align:right">Check-out time</th><th style="text-align:right">Working hours</th><th style="text-align:right">Past standard</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // === Leave ===
+  const lk = document.getElementById('leave-kpis'); lk.innerHTML = '';
+  lk.appendChild(kpiCard('Leave days', fmtNum(last(s.leave_days)), trendNote(last(s.leave_days), prev(s.leave_days), 'down'), s.leave_days, '#534AB7'));
+  lk.appendChild(kpiCard('People on leave', last(s.leave_headcount), trendNote(last(s.leave_headcount), prev(s.leave_headcount), 'down'), s.leave_headcount, '#3C3489'));
+  lk.appendChild(kpiCard('Approval rate', fmtNum(last(s.leave_approval))+'%', trendNote(last(s.leave_approval), prev(s.leave_approval), 'up'), s.leave_approval, '#3B6D11'));
+  lk.appendChild(kpiCard('Planned leave (>30d notice)', fmtNum(last(s.leave_planned_days))+' days', trendNote(last(s.leave_planned_days), prev(s.leave_planned_days), 'up'), s.leave_planned_days, '#3B6D11'));
+  lk.appendChild(kpiCard('Unplanned leave (2\u201330d notice)', fmtNum(last(s.leave_unplanned_days))+' days', trendNote(last(s.leave_unplanned_days), prev(s.leave_unplanned_days), 'down'), s.leave_unplanned_days, '#854F0B'));
+  lk.appendChild(kpiCard('Urgent leave (\u22642d notice)', fmtNum(last(s.leave_urgent_days))+' days', trendNote(last(s.leave_urgent_days), prev(s.leave_urgent_days), 'down'), s.leave_urgent_days, '#A32D2D'));
+  const lt = document.getElementById('leave-trend'); lt.innerHTML = '';
+  const curRows = leaveHeatmapRows(D.leave_calendar);
+  comboTrendCardCustom(lt, 'Leave days', leaveConcentrationInsight(curRows, D.leave_calendar), s.leave_days, 'Leave days', '#B0A9EE', s.leave_headcount, 'People', '#3C3489', 'chart-leave-combo');
+  stackedTrendCard(lt, 'Leave days by notice category', leaveCategoryInsight(s),
+    `${fmtNum(last(s.leave_planned_days))} planned \u00b7 ${fmtNum(last(s.leave_unplanned_days))} unplanned \u00b7 ${fmtNum(last(s.leave_urgent_days))} urgent`,
+    [
+      {label:'Planned (>30d)', data:s.leave_planned_days, color:'#3B6D11'},
+      {label:'Unplanned (2\u201330d)', data:s.leave_unplanned_days, color:'#854F0B'},
+      {label:'Urgent (\u22642d)', data:s.leave_urgent_days, color:'#A32D2D'}
+    ], 'chart-leave-cat');
+  document.getElementById('concentration-range-label').textContent = `(${D.week_ranges[D.week_ranges.length-1]} & next ${D.next_week_range})`;
+  renderLeaveHeatmapCombined(document.getElementById('leave-heatmap'), D.leave_calendar, D.leave_calendar_next, curRows);
+
+  document.getElementById('next-week-range-label2').textContent = `(${D.next_week_range})`;
+
+  const leaveCurTable = D.leave_details_current[key] || [];
+  renderGenericTable(document.getElementById('leave-table-current'),
+    ['Employee','From','To','Days','Type','Notice category','Status'],
+    leaveCurTable.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.type || '\u2014', noticeBadge(r.notice_category), r.status]),
+    'No leave requests this week for this scope.');
+
+  const leaveNextTable = D.leave_details_next[key] || [];
+  renderGenericTable(document.getElementById('leave-table-next'),
+    ['Employee','From','To','Days','Type','Notice category','Status'],
+    leaveNextTable.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.type || '\u2014', noticeBadge(r.notice_category), r.status]),
+    'No leave requests submitted yet for next week in this scope.');
+
+  renderFlagList(document.getElementById('leave-flags'), flags.filter(f=>f.type.toLowerCase().includes('leave')));
+
+  // === OT & WFH ===
+  const ok = document.getElementById('otwfh-kpis'); ok.innerHTML = '';
+  ok.appendChild(kpiCard('OT hours (total)', fmtNum(last(s.ot_hours)), trendNote(last(s.ot_hours), prev(s.ot_hours), 'down'), s.ot_hours, '#D85A30'));
+  ok.appendChild(kpiCard('Weekend OT hours', fmtNum(last(s.ot_weekend_hours)), trendNote(last(s.ot_weekend_hours), prev(s.ot_weekend_hours), 'down'), s.ot_weekend_hours, '#A32D2D'));
+  ok.appendChild(kpiCard('Weekday OT hours', fmtNum(last(s.ot_weekday_hours)), trendNote(last(s.ot_weekday_hours), prev(s.ot_weekday_hours), 'down'), s.ot_weekday_hours, '#D85A30'));
+  ok.appendChild(kpiCard('WFH days', last(s.wfh_days), trendNote(last(s.wfh_days), prev(s.wfh_days), 'up'), s.wfh_days, '#185FA5'));
+  const ot_ = document.getElementById('otwfh-trend'); ot_.innerHTML = '';
+  stackedTrendCard(ot_, 'OT hours: weekend vs weekday', otSplitInsight(s),
+    `${fmtNum(last(s.ot_weekend_hours))}h weekend \u00b7 ${fmtNum(last(s.ot_weekday_hours))}h weekday`,
+    [
+      {label:'Weekend OT', data:s.ot_weekend_hours, color:'#A32D2D'},
+      {label:'Weekday OT (after shift)', data:s.ot_weekday_hours, color:'#D85A30'}
+    ], 'chart-ot-split');
+  trendCard(ot_, 'WFH days', s.wfh_days, '#185FA5', 'chart-wfh', ' days', 'up');
+
+  const otTable = D.ot_details[key] || [];
+  renderGenericTable(document.getElementById('ot-table'),
+    ['Employee','Date','Hours','Timing','Reason','Status'],
+    otTable.map(r=>[r.name, r.date, fmtNum(r.hours), r.timing, r.reason || '\u2014', r.status]),
+    'No OT requests this week for this scope.');
+
+  const wfhTable = D.wfh_details[key] || [];
+  renderGenericTable(document.getElementById('wfh-table'),
+    ['Employee','From','To','Reason','Status'],
+    wfhTable.map(r=>[r.name, r.from, r.to, r.reason || '\u2014', r.status]),
+    'No WFH requests this week for this scope.');
+
+  renderFlagList(document.getElementById('otwfh-flags'), flags.filter(f=>f.type.toLowerCase().includes('ot') || f.type.toLowerCase().includes('overwork')));
+
+  // === Requests ops ===
+  const opk = document.getElementById('ops-kpis'); opk.innerHTML = '';
+  opk.appendChild(kpiCard('Late CI / Early CO', last(s.lc_ec_events), trendNote(last(s.lc_ec_events), prev(s.lc_ec_events), 'down'), s.lc_ec_events, '#993C1D'));
+  opk.appendChild(kpiCard('Business trips', last(s.trip_count), trendNote(last(s.trip_count), prev(s.trip_count), 'up'), s.trip_count, '#0F6E56'));
+  opk.appendChild(kpiCard('Shift changes', last(s.sc_count), trendNote(last(s.sc_count), prev(s.sc_count), 'down'), s.sc_count, '#5F5E5A'));
+  const opt = document.getElementById('ops-trend'); opt.innerHTML = '';
+  trendCard(opt, 'Late CI / Early CO events', s.lc_ec_events, '#993C1D', 'chart-lcec', '', 'down');
+  trendCard(opt, 'Late check-ins (count)', s.late_ci_total, '#EF9F27', 'chart-ops-avgci', '', 'down');
+  trendCard(opt, 'Staying-late instances (count)', s.late_co_total, '#D14520', 'chart-ops-avgco', '', 'down');
+  trendCard(opt, 'Business trips', s.trip_count, '#0F6E56', 'chart-trip', '', 'up');
+  trendCard(opt, 'Shift change requests', s.sc_count, '#5F5E5A', 'chart-sc', '', 'down');
+  renderFlagList(document.getElementById('ops-flags'), flags.filter(f=>f.type.toLowerCase().includes('friday') || f.type.toLowerCase().includes('shift')));
+
+  const lcecRows = D.request_details.lcec[key] || [];
+  renderGenericTable(document.getElementById('ops-lcec-table'),
+    ['Employee','Date','CI status','CO status','Reason','Status'],
+    lcecRows.map(r=>[r.name, r.date, r.ci_category, r.co_category, r.reason || '\u2014', r.status]),
+    'No Late CI / Early CO requests this week for this scope.');
+
+  const tripRows = D.request_details.trip[key] || [];
+  renderGenericTable(document.getElementById('ops-trip-table'),
+    ['Employee','From','To','Days','Destination','Purpose','Status'],
+    tripRows.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.destination || '\u2014', r.purpose || '\u2014', r.status]),
+    'No business trips this week for this scope.');
+
+  const scRows = D.request_details.shift_change[key] || [];
+  renderGenericTable(document.getElementById('ops-sc-table'),
+    ['Employee','Date','Old shift','New shift','Reason','Status'],
+    scRows.map(r=>[r.name, r.date, r.old_shift || '\u2014', r.new_shift || '\u2014', r.reason || '\u2014', r.status]),
+    'No shift changes this week for this scope.');
+
+  // === Risk ===
+  renderFlagList(document.getElementById('risk-flags'), flags);
+}
+
+async function loadDashboardData() {
+  try {
+    const response = await fetch(`../references/data.json?t=${new Date().getTime()}`);
+    if (!response.ok) throw new Error("HTTP error " + response.status);
+    const data = await response.json();
+    D = data; // Assign to global D
+    
+    // Initialize the UI now that data is loaded
+    populateFilterOptions();
+    renderAll();
+  } catch(err) {
+    console.error("Error loading data:", err);
+    alert("Không thể tải dữ liệu dashboard mới nhất. Đang dùng dữ liệu cache (nếu có).");
+  }
+}
+
+window.addEventListener('DOMContentLoaded', loadDashboardData);
+
+</script>
+</body>
+</html>
