@@ -29,7 +29,7 @@ def step_2_refresh_excel():
     xl = None
     wb = None
     try:
-        xl = win32com.client.Dispatch("Excel.Application")
+        xl = win32com.client.DispatchEx("Excel.Application")
         xl.Visible = False # Chạy ngầm
         xl.DisplayAlerts = False # Tắt popup cảnh báo
         wb = xl.Workbooks.Open(str(EXCEL_PATH))
