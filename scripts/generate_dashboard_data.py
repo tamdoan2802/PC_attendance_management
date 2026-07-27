@@ -1053,7 +1053,9 @@ def build_dash_data(proc, scopes, week_ranges):
                 "to": str(r.get("Leave_To", ""))[:10],
                 "days": safe_float(r.get("Leave_Days", 0)),
                 "notice_category": str(r.get("notice_category", "Unknown")),
-                "status": "Workload Arranged & Informed Customer"
+                "reason": (str(r.get("Reason", "")).strip()
+                           if str(r.get("Reason", "")).strip() and str(r.get("Reason", "")).strip().lower() != "nan"
+                           else str(r.get("Leave_Type_Mapped", "Leave")))
             })
             
         # 3. Late Checkouts > 90 mins

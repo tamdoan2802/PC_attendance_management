@@ -1354,10 +1354,9 @@ function renderAttendanceDashboard() {
 
   // Leave Table
   renderGenericTable(document.getElementById('ad-leave-table'),
-    ['Employee Name', 'Customer', 'Leave Dates', 'Leave Days', 'Notice Category', 'Arrangement'],
+    ['Employee Name', 'Customer', 'Leave Dates', 'Leave Days', 'Notice Category', 'Reason'],
     leaves.map(r => {
-      let stHtml = {__html: `<span style="padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; color:#155724;background:#d4edda;border:1px solid #c3e6cb">${r.status}</span>`};
-      return [r.name, r.customer, `${r.from} to ${r.to}`, r.days, noticeBadge(r.notice_category), stHtml];
+      return [r.name, r.customer, `${r.from} to ${r.to}`, r.days, noticeBadge(r.notice_category), r.reason || '\u2014'];
     }),
     'No leaves for this selected week.'
   );
