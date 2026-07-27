@@ -113,6 +113,7 @@
       <div class="sub">Current week: <span id="curWeekLabel"></span> &middot; source: HR_Fact_Attendance.xlsx</div>
     </div>
     <div class="controls">
+      <select id="masterWeekFilter"></select>
       <select id="clientFilter"></select>
       <select id="teamFilter"></select>
     </div>
@@ -289,6 +290,7 @@
 let D = {};
 let teamScope = 'All Teams';
 let clientScope = 'All Clients';
+let weekIndex = 3;
 const charts = {};
 
 function fmtNum(n, d=1){ return Number(n).toLocaleString(undefined, {maximumFractionDigits:d}); }
@@ -337,6 +339,15 @@ clientSel.addEventListener('change', ()=>{
 function initUI() {
   document.getElementById('curWeekLabel').textContent = D.week_ranges[D.week_ranges.length-1];
   refreshFilterOptions();
+
+  const mw = document.getElementById('masterWeekFilter');
+  populateSelect(mw, D.week_ranges, D.week_ranges[D.week_ranges.length-1]);
+  weekIndex = D.week_ranges.length - 1;
+  mw.addEventListener('change', () => {
+    weekIndex = D.week_ranges.indexOf(mw.value);
+    document.getElementById('curWeekLabel').textContent = mw.value;
+    renderAll();
+  });
 }
 
 const TABS = [
@@ -365,8 +376,8 @@ TABS.forEach((t,i)=>{
 document.getElementById('page-overview').classList.add('active');
 
 // ---------- helpers ----------
-function last(arr){ return arr[arr.length-1]; }
-function prev(arr){ return arr[arr.length-2]; }
+function last(arr){ return arr[weekIndex]; }
+function prev(arr){ return weekIndex > 0 ? arr[weekIndex-1] : arr[0]; }
 function pctChange(cur, pri){
   if(pri === 0) return null;
   return ((cur-pri)/Math.abs(pri))*100;
@@ -932,7 +943,8 @@ function stackedBarChart(canvasId, labels, series){
 function renderAll(){
   const key = scopeKey();
   const s = D.data[key];
-  const flags = D.flags[key] || [];
+  const selectedWeek = D.week_ranges[weekIndex];
+  const flags = (D.flags[selectedWeek] && D.flags[selectedWeek][key]) ? D.flags[selectedWeek][key] : [];
 
   // === Attendance Dashboard ===
   renderAttendanceDashboard();
@@ -1004,7 +1016,8 @@ function renderAll(){
   rankLCI.className = 'chart-card';
   rankLCI.innerHTML = `<p class="chart-insight">${teamRankInsight(D.team_ranking.late_checkin_rate, 'late check-in rate', '%', true)}</p><p class="chart-meta">Late check-in rate by team, current week</p><canvas id="chart-rank-lci" height="260"></canvas>`;
   ar.appendChild(rankLCI);
-  const clientRanking = D.team_ranking[clientScope] || D.team_ranking['All Clients'];
+  const weekRank = D.team_ranking[selectedWeek] || {};
+  const clientRanking = weekRank[clientScope] || weekRank['All Clients'] || {late_checkin_rate:[], adherence_rate:[]};
   hBarRankChart('chart-rank-lci', clientRanking.late_checkin_rate.slice(0,8), '%', teamScope, '#EF9F27');
 
   const rankAdh = document.createElement('div');
@@ -1032,7 +1045,7 @@ function renderAll(){
     hoursBreakdownInsight(custRows, 'customer'), 'chart-hours-by-customer');
 
   const ath = document.getElementById('attendance-top-hours'); ath.innerHTML = '';
-  const topHoursItems = D.top_avg_working_hours[key] || [];
+  const topHoursItems = (D.top_avg_working_hours[selectedWeek] && D.top_avg_working_hours[selectedWeek][key]) ? D.top_avg_working_hours[selectedWeek][key] : [];
   const topHoursWrap = document.createElement('div');
   topHoursWrap.className = 'chart-card';
   const topHoursInsight = topHoursItems.length
@@ -1045,7 +1058,7 @@ function renderAll(){
   document.getElementById('attendance-incidents-range').textContent =
     `Across the full 4-week window (${D.week_ranges[0]} \u2013 ${D.week_ranges[D.week_ranges.length-1]}), not just the current week.`;
   const incidentsEl = document.getElementById('attendance-incidents');
-  const incidents = D.extensive_late_incidents[key] || [];
+  const incidents = (D.extensive_late_incidents[selectedWeek] && D.extensive_late_incidents[selectedWeek][key]) ? D.extensive_late_incidents[selectedWeek][key] : [];
   if(incidents.length === 0){
     incidentsEl.innerHTML = '<div class="empty">No staying-late incidents over 90 minutes in this 4-week window for this scope.</div>';
   } else {
@@ -1075,8 +1088,8 @@ function renderAll(){
   lk.appendChild(kpiCard('Unplanned leave (2\u201330d notice)', fmtNum(last(s.leave_unplanned_days))+' days', trendNote(last(s.leave_unplanned_days), prev(s.leave_unplanned_days), 'down'), s.leave_unplanned_days, '#854F0B'));
   lk.appendChild(kpiCard('Urgent leave (\u22642d notice)', fmtNum(last(s.leave_urgent_days))+' days', trendNote(last(s.leave_urgent_days), prev(s.leave_urgent_days), 'down'), s.leave_urgent_days, '#A32D2D'));
   const lt = document.getElementById('leave-trend'); lt.innerHTML = '';
-  const curRows = leaveHeatmapRows(D.leave_calendar);
-  comboTrendCardCustom(lt, 'Leave days', leaveConcentrationInsight(curRows, D.leave_calendar), s.leave_days, 'Leave days', '#B0A9EE', s.leave_headcount, 'People', '#3C3489', 'chart-leave-combo');
+  const curRows = leaveHeatmapRows(D.leave_calendar[selectedWeek] || {});
+  comboTrendCardCustom(lt, 'Leave days', leaveConcentrationInsight(curRows, D.leave_calendar[selectedWeek] || {}), s.leave_days, 'Leave days', '#B0A9EE', s.leave_headcount, 'People', '#3C3489', 'chart-leave-combo');
   stackedTrendCard(lt, 'Leave days by notice category', leaveCategoryInsight(s),
     `${fmtNum(last(s.leave_planned_days))} planned \u00b7 ${fmtNum(last(s.leave_unplanned_days))} unplanned \u00b7 ${fmtNum(last(s.leave_urgent_days))} urgent`,
     [
@@ -1085,17 +1098,17 @@ function renderAll(){
       {label:'Urgent (\u22642d)', data:s.leave_urgent_days, color:'#A32D2D'}
     ], 'chart-leave-cat');
   document.getElementById('concentration-range-label').textContent = `(${D.week_ranges[D.week_ranges.length-1]} & next ${D.next_week_range})`;
-  renderLeaveHeatmapCombined(document.getElementById('leave-heatmap'), D.leave_calendar, D.leave_calendar_next, curRows);
+  renderLeaveHeatmapCombined(document.getElementById('leave-heatmap'), D.leave_calendar[selectedWeek]||{}, D.leave_calendar_next[selectedWeek]||{}, curRows);
 
   document.getElementById('next-week-range-label2').textContent = `(${D.next_week_range})`;
 
-  const leaveCurTable = D.leave_details_current[key] || [];
+  const leaveCurTable = (D.leave_details_current[selectedWeek] && D.leave_details_current[selectedWeek][key]) ? D.leave_details_current[selectedWeek][key] : [];
   renderGenericTable(document.getElementById('leave-table-current'),
     ['Employee','From','To','Days','Type','Notice category','Status'],
     leaveCurTable.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.type || '\u2014', noticeBadge(r.notice_category), r.status]),
     'No leave requests this week for this scope.');
 
-  const leaveNextTable = D.leave_details_next[key] || [];
+  const leaveNextTable = (D.leave_details_next[selectedWeek] && D.leave_details_next[selectedWeek][key]) ? D.leave_details_next[selectedWeek][key] : [];
   renderGenericTable(document.getElementById('leave-table-next'),
     ['Employee','From','To','Days','Type','Notice category','Status'],
     leaveNextTable.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.type || '\u2014', noticeBadge(r.notice_category), r.status]),
@@ -1114,13 +1127,13 @@ function renderAll(){
     s.ot_hours, 'Hours', '#D85A30', 
     s.ot_employees, 'Employees', '#3C3489', 'chart-ot-combo');
 
-  const otTable = D.ot_details[key] || [];
+  const otTable = (D.ot_details[selectedWeek] && D.ot_details[selectedWeek][key]) ? D.ot_details[selectedWeek][key] : [];
   renderGenericTable(document.getElementById('ot-table'),
     ['Employee','Date','Hours','Timing','Reason','Status'],
     otTable.map(r=>[r.name, r.date, fmtNum(r.hours), r.timing, r.reason || '\u2014', r.status]),
     'No OT requests in the last 4 weeks for this scope.');
 
-  const wfhTable = D.wfh_details[key] || [];
+  const wfhTable = (D.wfh_details[selectedWeek] && D.wfh_details[selectedWeek][key]) ? D.wfh_details[selectedWeek][key] : [];
   renderGenericTable(document.getElementById('wfh-table'),
     ['Employee','From','To','Reason','Status'],
     wfhTable.map(r=>[r.name, r.from, r.to, r.reason || '\u2014', r.status]),
@@ -1143,19 +1156,20 @@ function renderAll(){
     f.type.toLowerCase().includes('unstable')
   ));
 
-  const lcecRows = D.request_details.lcec[key] || [];
+  const reqDet = D.request_details[selectedWeek] || {lcec:{}, trip:{}, shift_change:{}};
+  const lcecRows = reqDet.lcec[key] || [];
   renderGenericTable(document.getElementById('ops-lcec-table'),
     ['Employee','Date','Minutes','CI status','CO status','Reason','Status'],
     lcecRows.map(r=>[r.name, r.date, fmtNum(r.minutes||0,0), r.ci_category, r.co_category, r.reason || '\u2014', r.status]),
     'No Late CI / Early CO requests this week for this scope.');
 
-  const tripRows = D.request_details.trip[key] || [];
+  const tripRows = reqDet.trip[key] || [];
   renderGenericTable(document.getElementById('ops-trip-table'),
     ['Employee','From','To','Days','Destination','Purpose','Status'],
     tripRows.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.destination || '\u2014', r.purpose || '\u2014', r.status]),
     'No business trips this week for this scope.');
 
-  const scRows = D.request_details.shift_change[key] || [];
+  const scRows = reqDet.shift_change[key] || [];
   renderGenericTable(document.getElementById('ops-sc-table'),
     ['Employee','Date','Old shift','New shift','Reason','Status'],
     scRows.map(r=>[r.name, r.date, r.old_shift || '\u2014', r.new_shift || '\u2014', r.reason || '\u2014', r.status]),
