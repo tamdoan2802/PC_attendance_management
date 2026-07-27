@@ -126,10 +126,10 @@
     <div class="section-title">Outcome metrics &mdash; current week</div>
     <div class="grid grid-4" id="ov-kpis"></div>
 
-    <div class="section-title">Requests this week</div>
+    <div class="section-title">Requests for this selected week</div>
     <div class="grid grid-3" id="ov-modules"></div>
 
-    <div class="section-title">Top flags this week</div>
+    <div class="section-title">Top flags for this selected week</div>
     <div class="card" id="ov-flags"></div>
   </div>
 
@@ -412,7 +412,7 @@ function adherenceInsight(values){
     sentence = `Adherence is at ${fmtNum(cur)}%, ${fmtNum(gap)} points below the 100% benchmark \u2014 a shortfall against standard hours that reads as risk and is worth reviewing.`;
   }
   if (atOrAbove !== wasAtOrAbove){
-    sentence += atOrAbove ? ' This crossed back above benchmark this week.' : ' This dropped below benchmark this week.';
+    sentence += atOrAbove ? ' This crossed back above benchmark for this selected week.' : ' This dropped below benchmark for this selected week.';
   }
   return sentence;
 }
@@ -424,7 +424,7 @@ function adherenceRankInsight(rankedAsc){
   if (worst.value < 100){
     return `${worst.team} is furthest below the 100% adherence benchmark at ${fmtNum(worst.value)}% \u2014 ${belowBenchmark} of ${rankedAsc.length} teams are currently under benchmark and carry that risk.`;
   }
-  return `Every team is at or above the 100% adherence benchmark this week; ${worst.team} is closest to it at ${fmtNum(worst.value)}%.`;
+  return `Every team is at or above the 100% adherence benchmark for this selected week; ${worst.team} is closest to it at ${fmtNum(worst.value)}%.`;
 }
 
 function chartInsight(label, values, unit, goodDir){
@@ -506,7 +506,7 @@ function teamRankInsight(rankedItems, metricLabel, unit, highIsBad){
   if(!rankedItems || rankedItems.length===0) return `No team data available for ${metricLabel}.`;
   const top = rankedItems[0];
   const worstWord = highIsBad ? 'highest' : 'lowest';
-  return `${top.team} has the ${worstWord} ${metricLabel} this week, at ${fmtNum(top.value)}${unit} \u2014 worth a closer look if this persists.`;
+  return `${top.team} has the ${worstWord} ${metricLabel} for this selected week, at ${fmtNum(top.value)}${unit} \u2014 worth a closer look if this persists.`;
 }
 
 function attendanceInsightHtml(s, teamScope, clientScope){
@@ -529,7 +529,7 @@ function attendanceInsightHtml(s, teamScope, clientScope){
   const co30Pct = coTotal ? Math.round(100*co30/coTotal) : 0;
   let coQualityLine;
   if (coTotal === 0){
-    coQualityLine = `No staying-late instances were recorded this week.`;
+    coQualityLine = `No staying-late instances were recorded for this selected week.`;
   } else if (coOverPct >= 15){
     coQualityLine = `${coOverPct}% of staying-late instances ran past 90 minutes \u2014 an early signal of burnout risk or a workflow bottleneck worth checking.`;
   } else if (co30Pct >= 60){
@@ -542,7 +542,7 @@ function attendanceInsightHtml(s, teamScope, clientScope){
   const eciUnexpl = last(s.early_ci_unexplained_count);
 
   return `
-    <p><strong>${scopeLabel} this week</strong>, ${fmtNum(lci)}% of check-ins were more than ${D.late_ci_threshold||5} minutes late (${lciTrendWord} ${fmtNum(lciP)}% last week). Of ${lateTotal} late check-ins, ${lateUnexpl} (${lateUnexplPct}%) have no matching approved Late CI/Early CO request \u2014 that's the group worth a closer look, not the full total.</p>
+    <p><strong>${scopeLabel} for this selected week</strong>, ${fmtNum(lci)}% of check-ins were more than ${D.late_ci_threshold||5} minutes late (${lciTrendWord} ${fmtNum(lciP)}% last week). Of ${lateTotal} late check-ins, ${lateUnexpl} (${lateUnexplPct}%) have no matching approved Late CI/Early CO request \u2014 that's the group worth a closer look, not the full total.</p>
     <p>${coQualityLine}</p>
     <p>${eciTotal} early check-ins were logged (>${D.late_ci_threshold||5} min early); this isn't a problem by default \u2014 treat it as a signal to ask why. ${eciUnexpl} of them have no same-day approved request on file, so that's where a conversation would be most useful. Adherence \u2014 actual hours worked as a share of standard hours, excluding leave/holiday days \u2014 sits at <strong>${fmtNum(adh)}%</strong> against a 100% benchmark (${adh>=100 ? 'at/above benchmark, confirming compliance' : 'below benchmark, signalling risk'}).</p>
   `;
@@ -551,51 +551,51 @@ function attendanceInsightHtml(s, teamScope, clientScope){
 function lateCIProfileInsight(s){
   const total = last(s.late_ci_total);
   const unexpl = last(s.late_ci_unexplained);
-  if(total === 0) return 'No late check-ins were recorded this week.';
+  if(total === 0) return 'No late check-ins were recorded for this selected week.';
   const gt10 = last(s.late_ci_gt10);
   const gt10Pct = Math.round(100*gt10/total);
   const unexplPct = Math.round(100*unexpl/total);
-  return `${gt10Pct}% of this week's late check-ins ran over 10 minutes, and ${unexplPct}% of late check-ins over ${D.late_ci_threshold||5} minutes have no matching approved request \u2014 that combination is the real signal, not the raw late-arrival count.`;
+  return `${gt10Pct}% of for this selected week's late check-ins ran over 10 minutes, and ${unexplPct}% of late check-ins over ${D.late_ci_threshold||5} minutes have no matching approved request \u2014 that combination is the real signal, not the raw late-arrival count.`;
 }
 
 function lateCOProfileInsight(s){
   const total = last(s.late_co_total);
-  if(total === 0) return 'No staying-late instances were recorded this week.';
+  if(total === 0) return 'No staying-late instances were recorded for this selected week.';
   const over90 = last(s.late_co_gt90), lt30 = last(s.late_co_lt30);
   const over90Pct = Math.round(100*over90/total), lt30Pct = Math.round(100*lt30/total);
-  if(over90Pct >= 15) return `${over90Pct}% of staying-late instances exceeded 90 minutes this week \u2014 concentration here points to burnout risk or a workflow bottleneck, not just occasional overrun.`;
+  if(over90Pct >= 15) return `${over90Pct}% of staying-late instances exceeded 90 minutes for this selected week \u2014 concentration here points to burnout risk or a workflow bottleneck, not just occasional overrun.`;
   if(lt30Pct >= 60) return `${lt30Pct}% of staying-late instances stayed under 30 minutes \u2014 data concentrated at the low end reads as good quality.`;
-  return `Staying-late instances are spread across the 30\u201390 minute band this week \u2014 a usual, not alarming, pattern.`;
+  return `Staying-late instances are spread across the 30\u201390 minute band for this selected week \u2014 a usual, not alarming, pattern.`;
 }
 
 function earlyCIInsight(s){
   const total = last(s.early_ci_signal_count);
   const unexpl = last(s.early_ci_unexplained_count);
-  if(total === 0) return 'No early check-ins were recorded this week.';
+  if(total === 0) return 'No early check-ins were recorded for this selected week.';
   const unexplPct = Math.round(100*unexpl/total);
-  return `Early check-in isn't inherently good or bad \u2014 it's a prompt to ask why. ${unexplPct}% of this week's early check-ins have no same-day approved request, so start there if you want to understand the driver (workload, commute, personal preference).`;
+  return `Early check-in isn't inherently good or bad \u2014 it's a prompt to ask why. ${unexplPct}% of for this selected week's early check-ins have no same-day approved request, so start there if you want to understand the driver (workload, commute, personal preference).`;
 }
 function leaveCategoryInsight(s){
   const planned = last(s.leave_planned_days), unplanned = last(s.leave_unplanned_days), urgent = last(s.leave_urgent_days);
   const total = planned + unplanned + urgent;
-  if(total === 0) return 'No leave was requested this week for this scope.';
+  if(total === 0) return 'No leave was requested for this selected week.';
   const urgentShare = (urgent/total)*100;
   if(urgentShare >= 40){
-    return `Urgent leave (\u22642 days notice) makes up ${fmtNum(urgentShare,0)}% of this week's leave days \u2014 a high share that limits planning time for coverage.`;
+    return `Urgent leave (\u22642 days notice) makes up ${fmtNum(urgentShare,0)}% of for this selected week's leave days \u2014 a high share that limits planning time for coverage.`;
   }
   const plannedShare = (planned/total)*100;
-  return `Planned leave (>30 days notice) accounts for ${fmtNum(plannedShare,0)}% of this week's leave days, keeping most absences predictable for coverage planning.`;
+  return `Planned leave (>30 days notice) accounts for ${fmtNum(plannedShare,0)}% of for this selected week's leave days, keeping most absences predictable for coverage planning.`;
 }
 
 function otSplitInsight(s){
   const wknd = last(s.ot_weekend_hours), wkday = last(s.ot_weekday_hours);
   const total = wknd + wkday;
-  if(total === 0) return 'No OT was logged this week for this scope.';
+  if(total === 0) return 'No OT was logged for this selected week.';
   const wkndShare = (wknd/total)*100;
   if(wkndShare >= 50){
-    return `Weekend OT makes up ${fmtNum(wkndShare,0)}% of this week's OT hours \u2014 worth checking whether this reflects planned weekend coverage or reactive overload.`;
+    return `Weekend OT makes up ${fmtNum(wkndShare,0)}% of for this selected week's OT hours \u2014 worth checking whether this reflects planned weekend coverage or reactive overload.`;
   }
-  return `Weekday after-shift OT drives ${fmtNum(100-wkndShare,0)}% of this week's OT hours, suggesting workload is spilling past scheduled shifts rather than requiring weekend coverage.`;
+  return `Weekday after-shift OT drives ${fmtNum(100-wkndShare,0)}% of for this selected week's OT hours, suggesting workload is spilling past scheduled shifts rather than requiring weekend coverage.`;
 }
 
 function sparklineSvg(values, color, w=150, h=32){
@@ -634,7 +634,7 @@ function flagBadge(sev){ return sev==='danger' ? 'badge-danger' : 'badge-warn'; 
 function renderFlagList(container, items){
   container.innerHTML = '';
   if(!items || items.length===0){
-    container.innerHTML = '<div class="empty">No flags for this scope this week.</div>';
+    container.innerHTML = '<div class="empty">No flags for this scope for this selected week.</div>';
     return;
   }
   items.forEach(it=>{
@@ -657,7 +657,7 @@ function noticeBadge(cat){
 function renderGenericTable(container, headers, rows, emptyMsg){
   container.innerHTML = '';
   if(!rows || rows.length===0){
-    container.innerHTML = `<div class="empty">${emptyMsg || 'No records for this scope this week.'}</div>`;
+    container.innerHTML = `<div class="empty">${emptyMsg || 'No records for this scope for this selected week.'}</div>`;
     return;
   }
   const cellHtml = c => (c && typeof c==='object' && '__html' in c) ? c.__html : escHtml(c);
@@ -736,9 +736,9 @@ function categoryComboCard(container, title, labels, hourValues, empValues, insi
 
 function hoursBreakdownInsight(rows, dimLabel){
   const withData = rows.filter(r=>r.hours>0);
-  if(withData.length===0) return `No working-hour data available by ${dimLabel} for this scope this week.`;
+  if(withData.length===0) return `No working-hour data available by ${dimLabel} for this scope for this selected week.`;
   const top = [...withData].sort((a,b)=>b.hours-a.hours)[0];
-  return `${top.label} runs highest at ${fmtNum(top.hours,2)}h average working hours this week across ${top.emp} employees \u2014 worth a look if that's a sustained pattern rather than a one-off.`;
+  return `${top.label} runs highest at ${fmtNum(top.hours,2)}h average working hours for this selected week across ${top.emp} employees \u2014 worth a look if that's a sustained pattern rather than a one-off.`;
 }
 
 function trendCard(gridEl, label, values, color, canvasId, unit='', goodDir='up', extraMeta=''){
@@ -1014,7 +1014,7 @@ function renderAll(){
   const ar = document.getElementById('attendance-ranking'); ar.innerHTML = '';
   const rankLCI = document.createElement('div');
   rankLCI.className = 'chart-card';
-  rankLCI.innerHTML = `<p class="chart-insight">${teamRankInsight(D.team_ranking.late_checkin_rate, 'late check-in rate', '%', true)}</p><p class="chart-meta">Late check-in rate by team, current week</p><canvas id="chart-rank-lci" height="260"></canvas>`;
+  rankLCI.innerHTML = `<p class="chart-insight">${teamRankInsight(clientRanking.late_checkin_rate, 'late check-in rate', '%', true)}</p><p class="chart-meta">Late check-in rate by team: </p><canvas id="chart-rank-lci" height="260"></canvas>`;
   ar.appendChild(rankLCI);
   const weekRank = D.team_ranking[selectedWeek] || {};
   const clientRanking = weekRank[clientScope] || weekRank['All Clients'] || {late_checkin_rate:[], adherence_rate:[]};
@@ -1023,7 +1023,7 @@ function renderAll(){
   const rankAdh = document.createElement('div');
   rankAdh.className = 'chart-card';
   const adhSortedAsc = [...clientRanking.adherence_rate].sort((a,b)=>a.value-b.value);
-  rankAdh.innerHTML = `<p class="chart-insight">${adherenceRankInsight(adhSortedAsc)}</p><p class="chart-meta">Adherence rate by team, current week \u2014 actual/standard hours; 100% = benchmark, hover for employee detail</p><canvas id="chart-rank-adh" height="260"></canvas>`;
+  rankAdh.innerHTML = `<p class="chart-insight">${adherenceRankInsight(adhSortedAsc)}</p><p class="chart-meta">Adherence rate by team:  \u2014 actual/standard hours; 100% = benchmark, hover for employee detail</p><canvas id="chart-rank-adh" height="260"></canvas>`;
   ar.appendChild(rankAdh);
   hBarRankChart('chart-rank-adh', adhSortedAsc.slice(0,8), '%', teamScope, '#3B6D11');
 
@@ -1032,7 +1032,7 @@ function renderAll(){
     const d = D.data[`${t}||${clientScope}`];
     return {label: t, hours: d ? last(d.avg_working_hours) : 0, emp: d ? last(d.work_employee_count) : 0};
   }).filter(r=>r.emp>0);
-  categoryComboCard(ahb, 'Average working hour by Team, current week',
+  categoryComboCard(ahb, 'Average working hour by Team: ',
     teamRows.map(r=>r.label), teamRows.map(r=>r.hours), teamRows.map(r=>r.emp),
     hoursBreakdownInsight(teamRows, 'team'), 'chart-hours-by-team');
 
@@ -1040,7 +1040,7 @@ function renderAll(){
     const d = D.data[`${teamScope}||${c}`];
     return {label: c, hours: d ? last(d.avg_working_hours) : 0, emp: d ? last(d.work_employee_count) : 0};
   }).filter(r=>r.emp>0);
-  categoryComboCard(ahb, 'Average working hour by Customer, current week',
+  categoryComboCard(ahb, 'Average working hour by Customer: ',
     custRows.map(r=>r.label), custRows.map(r=>r.hours), custRows.map(r=>r.emp),
     hoursBreakdownInsight(custRows, 'customer'), 'chart-hours-by-customer');
 
@@ -1049,9 +1049,9 @@ function renderAll(){
   const topHoursWrap = document.createElement('div');
   topHoursWrap.className = 'chart-card';
   const topHoursInsight = topHoursItems.length
-    ? `${topHoursItems[0].name} logged the highest average working hours this week at ${fmtNum(topHoursItems[0].value)}h/day \u2014 worth checking whether this reflects workload spikes or a sustained pattern.`
-    : 'No attendance data available for this scope this week.';
-  topHoursWrap.innerHTML = `<p class="chart-insight">${topHoursInsight}</p><p class="chart-meta">Average working hours per day, current week</p><canvas id="chart-top-hours" height="280"></canvas>`;
+    ? `${topHoursItems[0].name} logged the highest average working hours for this selected week at ${fmtNum(topHoursItems[0].value)}h/day \u2014 worth checking whether this reflects workload spikes or a sustained pattern.`
+    : 'No attendance data available for this scope for this selected week.';
+  topHoursWrap.innerHTML = `<p class="chart-insight">${topHoursInsight}</p><p class="chart-meta">Average working hours per day: </p><canvas id="chart-top-hours" height="280"></canvas>`;
   ath.appendChild(topHoursWrap);
   if(topHoursItems.length) employeeRankChart('chart-top-hours', topHoursItems, 'h', '#185FA5');
 
@@ -1106,7 +1106,7 @@ function renderAll(){
   renderGenericTable(document.getElementById('leave-table-current'),
     ['Employee','From','To','Days','Type','Notice category','Status'],
     leaveCurTable.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.type || '\u2014', noticeBadge(r.notice_category), r.status]),
-    'No leave requests this week for this scope.');
+    'No leave requests for this selected week.');
 
   const leaveNextTable = (D.leave_details_next[selectedWeek] && D.leave_details_next[selectedWeek][key]) ? D.leave_details_next[selectedWeek][key] : [];
   renderGenericTable(document.getElementById('leave-table-next'),
@@ -1161,19 +1161,19 @@ function renderAll(){
   renderGenericTable(document.getElementById('ops-lcec-table'),
     ['Employee','Date','Minutes','CI status','CO status','Reason','Status'],
     lcecRows.map(r=>[r.name, r.date, fmtNum(r.minutes||0,0), r.ci_category, r.co_category, r.reason || '\u2014', r.status]),
-    'No Late CI / Early CO requests this week for this scope.');
+    'No Late CI / Early CO requests for this selected week.');
 
   const tripRows = reqDet.trip[key] || [];
   renderGenericTable(document.getElementById('ops-trip-table'),
     ['Employee','From','To','Days','Destination','Purpose','Status'],
     tripRows.map(r=>[r.name, r.from, r.to, fmtNum(r.days), r.destination || '\u2014', r.purpose || '\u2014', r.status]),
-    'No business trips this week for this scope.');
+    'No business trips for this selected week.');
 
   const scRows = reqDet.shift_change[key] || [];
   renderGenericTable(document.getElementById('ops-sc-table'),
     ['Employee','Date','Old shift','New shift','Reason','Status'],
     scRows.map(r=>[r.name, r.date, r.old_shift || '\u2014', r.new_shift || '\u2014', r.reason || '\u2014', r.status]),
-    'No shift changes this week for this scope.');
+    'No shift changes for this selected week.');
 
   // === Risk ===
   renderFlagList(document.getElementById('risk-flags'), flags);
@@ -1237,7 +1237,7 @@ window.nextADWeek = () => {
 function renderADLeaveHeatmap(container, calMap, rows){
   container.innerHTML = '';
   if(!calMap || Object.keys(calMap).length === 0){
-    container.innerHTML = '<div class="empty">No leave concentration data for this week.</div>';
+    container.innerHTML = '<div class="empty">No leave concentration data for for this selected week.</div>';
     return;
   }
   const rowsWithData = rows.filter(r => calMap[r.key] && calMap[r.key].headcount > 0);
@@ -1355,7 +1355,7 @@ function renderAttendanceDashboard() {
       let stHtml = {__html: `<span style="padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; color:#155724;background:#d4edda;border:1px solid #c3e6cb">${r.status}</span>`};
       return [r.name, r.customer, `${r.from} to ${r.to}`, r.days, noticeBadge(r.notice_category), stHtml];
     }),
-    'No leaves this week.'
+    'No leaves for this selected week.'
   );
 
   // 3. Work Intensity
