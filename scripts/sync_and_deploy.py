@@ -100,7 +100,7 @@ def step_4_git_deploy():
         git_cmd = get_git_executable()
         
         print("Git add...")
-        subprocess.run([git_cmd, "add", "reports/index.html", "references/data.json"], cwd=repo_dir, check=True)
+        subprocess.run([git_cmd, "add", "reports/index.html", "references/data.json", "references/data.js"], cwd=repo_dir, check=True)
         
         print("Git commit...")
         commit_msg = f"Auto-sync from MISA at {time.strftime('%Y-%m-%d %H:%M:%S')}"

@@ -41,6 +41,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════
 THIS_DIR   = Path(__file__).parent.resolve()
 DATA_JSON_PATH = THIS_DIR.parent / "references" / "data.json"
+DATA_JS_PATH = THIS_DIR.parent / "references" / "data.js"
 EXCEL_PATH = Path(r"G:\My Drive\Dữ liệu nhân sự\Data\Timesheet\HR_Fact_Attendance.xlsx")
 
 EXCLUDED_IDS            = {"MTVN0059", "MTVN0062"}
@@ -705,87 +706,105 @@ def build_dash_data(proc, scopes, week_ranges):
 
         data_out[sk] = series
 
-    # --- Flags (current week only) --------------------------
-    print("[4] Computing risk flags…")
-    flags_out = {}
-    cur_mon, cur_fri = parse_week_mon_fri(cur_week)
-    cur_dates = {(cur_mon + timedelta(days=i)).date() for i in range(5)}
+    # --- Weekly Data Evaluation -----------------------------
+    print("[4-9] Computing flags, incidents, heatmaps, and details for ALL weeks...")
 
-    for sk in scope_keys:
-        t, c    = sk.split("||")
-        emp_ids = emp_lkp[(t, c)]
-        flags   = []
+    flags_out = {w: {} for w in week_ranges}
+    incidents_out = {w: {} for w in week_ranges}
+    top_hours_out = {w: {} for w in week_ranges}
+    team_ranking_out = {w: {} for w in week_ranges}
+    leave_calendar = {w: {} for w in week_ranges}
+    leave_calendar_next = {w: {} for w in week_ranges}
+    leave_details_current = {w: {} for w in week_ranges}
+    leave_details_next = {w: {} for w in week_ranges}
+    ot_details = {w: {} for w in week_ranges}
+    wfh_details = {w: {} for w in week_ranges}
+    request_details = {w: {} for w in week_ranges}
 
-        # 1. Overwork, no OT filed
-        a_df = att_scope(att_by_wk[cur_week], emp_ids, t, c)
-        wkd  = a_df[a_df["Is_Weekend"] == 0]
-        delta_col = "Delta (Số giờ làm việc thực tế - Số giờ làm việc tiêu chuẩn)"
-        if delta_col in wkd.columns and len(wkd) > 0:
-            avg_delta = wkd.groupby("Employee_ID")[delta_col].mean()
-            ot_filed  = {eid for (eid, d) in ot_appr_set if d in cur_dates}
-            for eid, delta in avg_delta.items():
-                if delta > OVERWORK_THRESHOLD_HRS and eid not in ot_filed:
-                    name_series = wkd.loc[wkd["Employee_ID"] == eid, "DIM_Employee.FullNameEN"]
-                    name = name_series.iloc[0] if len(name_series) > 0 else eid
-                    flags.append({"type": "Overwork, no OT filed", "severity": "danger",
-                                  "text": f"{name}: avg +{delta:.1f}h/day this week, no OT registered"})
-
-        # 2. Weekend-bridge leave  &  3. Short-notice leave
-        if not leave.empty:
-            l_wk = req_week(leave, cur_week, "Leave_From")
-            l_sc = req_scope(l_wk, emp_ids, t)
-            for _, r in l_sc.iterrows():
-                nm = r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or r["Employee_ID"]
-                date_str = fmt_date(r.get("Leave_From"))[:5]   # dd/mm
-                if r.get("Has_MonFri"):
-                    flags.append({"type": "Weekend-bridge leave", "severity": "warning",
-                                  "text": f"{nm}: leave adjoins weekend ({date_str})"})
-                if r.get("_notice_days", 999) < 1:
-                    flags.append({"type": "Short-notice leave", "severity": "warning",
-                                  "text": f"{nm}: leave requested with <1 day notice"})
-
-        # 4. Friday shift-change cluster
-        if not sc.empty:
-            sc_wk = req_week(sc, cur_week, "Work_Date")
-            sc_sc = req_scope(sc_wk, emp_ids, t)
-            fri_sc = sc_sc[sc_sc["Work_Date"].dt.date == cur_fri.date()]
-            if len(fri_sc) >= 3:
-                flags.append({"type": "Friday shift-change cluster", "severity": "warning",
-                              "text": f"{len(fri_sc)} shift changes on Friday — may thin end-of-week capacity"})
-
-        # --- SC & LCEC FLAGS ---
-        if not sc.empty:
-            s_2wk = sc[sc["Week Period"].isin(week_ranges[-2:])] if len(week_ranges) >= 2 else sc[sc["Week Period"] == cur_week]
-            s_sc = req_scope(s_2wk, emp_ids, t)
-            sc_counts = s_sc.groupby("Employee_ID").size()
-            for eid, cnt in sc_counts.items():
-                if cnt >= 2:
-                    nm = emp[emp["EmployeeID"] == eid]["FullNameEN"].iloc[0] if eid in emp["EmployeeID"].values else eid
-                    flags.append({"type": "Volatile Shift Switch", "severity": "warning", "text": f"{nm}: {cnt} shift changes in last 2 weeks"})
+    for eval_week in week_ranges:
+        eval_mon, eval_fri = parse_week_mon_fri(eval_week)
+        eval_dates = {(eval_mon + timedelta(days=i)).date() for i in range(5)}
         
-        if not lcec.empty:
-            lc_2wk = lcec[lcec["Week Period"].isin(week_ranges[-2:])] if len(week_ranges) >= 2 else lcec[lcec["Week Period"] == cur_week]
-            lc_sc = req_scope(lc_2wk, emp_ids, t)
-            lc_counts = lc_sc.groupby("Employee_ID").size()
-            for eid, cnt in lc_counts.items():
-                if cnt >= 2:
-                    nm = emp[emp["EmployeeID"] == eid]["FullNameEN"].iloc[0] if eid in emp["EmployeeID"].values else eid
-                    flags.append({"type": "Unstable Working Time", "severity": "warning", "text": f"{nm}: {cnt} late CI/early CO requests in last 2 weeks"})
+        next_mon = eval_mon + timedelta(days=7)
+        next_fri = eval_fri + timedelta(days=7)
+        next_wp  = f"{next_mon.strftime('%d/%m/%Y')} - {next_fri.strftime('%d/%m/%Y')}"
 
-        flags_out[sk] = flags
-        # back-fill active_flags for current week
-        if sk in data_out:
-            data_out[sk]["active_flags"][-1] = len(flags)
+        # 1. Flags
+        for sk in scope_keys:
+            t, c    = sk.split("||")
+            emp_ids = emp_lkp[(t, c)]
+            flags   = []
 
-    # --- Extensive late incidents (full 4-week window) ------
-    print("[5]  Computing extensive late incidents…")
-    incidents_out = {}
-    for sk in scope_keys:
-        t, c    = sk.split("||")
-        emp_ids = emp_lkp[(t, c)]
-        rows    = []
-        for wp in week_ranges:
-            a_wk = att_scope(att_by_wk[wp], emp_ids, t, c)
+            # Overwork, no OT filed
+            a_df = att_scope(att_by_wk[eval_week], emp_ids, t, c)
+            wkd  = a_df[a_df["Is_Weekend"] == 0]
+            delta_col = "Delta (Số giờ làm việc thực tế - Số giờ làm việc tiêu chuẩn)"
+            if delta_col in wkd.columns and len(wkd) > 0:
+                avg_delta = wkd.groupby("Employee_ID")[delta_col].mean()
+                ot_filed  = {eid for (eid, d) in ot_appr_set if d in eval_dates}
+                for eid, delta in avg_delta.items():
+                    if delta > OVERWORK_THRESHOLD_HRS and eid not in ot_filed:
+                        name_series = wkd.loc[wkd["Employee_ID"] == eid, "DIM_Employee.FullNameEN"]
+                        name = name_series.iloc[0] if len(name_series) > 0 else eid
+                        flags.append({"type": "Overwork, no OT filed", "severity": "danger",
+                                      "text": f"{name}: avg +{delta:.1f}h/day this week, no OT registered"})
+
+            # Weekend-bridge leave & Short-notice leave
+            if not leave.empty:
+                l_wk = req_week(leave, eval_week, "Leave_From")
+                l_sc = req_scope(l_wk, emp_ids, t)
+                for _, r in l_sc.iterrows():
+                    nm = r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or r["Employee_ID"]
+                    date_str = fmt_date(r.get("Leave_From"))[:5]
+                    if r.get("Has_MonFri"):
+                        flags.append({"type": "Weekend-bridge leave", "severity": "warning",
+                                      "text": f"{nm}: leave adjoins weekend ({date_str})"})
+                    if r.get("_notice_days", 999) < 1:
+                        flags.append({"type": "Short-notice leave", "severity": "warning",
+                                      "text": f"{nm}: leave requested with <1 day notice"})
+
+            # Friday shift-change cluster
+            if not sc.empty:
+                sc_wk = req_week(sc, eval_week, "Work_Date")
+                sc_sc = req_scope(sc_wk, emp_ids, t)
+                fri_sc = sc_sc[sc_sc["Work_Date"].dt.date == eval_fri.date()]
+                if len(fri_sc) >= 3:
+                    flags.append({"type": "Friday shift-change cluster", "severity": "warning",
+                                  "text": f"{len(fri_sc)} shift changes on Friday — may thin end-of-week capacity"})
+
+            # SC & LCEC FLAGS
+            if not sc.empty:
+                idx = week_ranges.index(eval_week)
+                start_idx = max(0, idx - 1)
+                s_2wk = sc[sc["Week Period"].isin(week_ranges[start_idx:idx+1])]
+                s_sc = req_scope(s_2wk, emp_ids, t)
+                sc_counts = s_sc.groupby("Employee_ID").size()
+                for eid, cnt in sc_counts.items():
+                    if cnt >= 2:
+                        nm = emp[emp["EmployeeID"] == eid]["FullNameEN"].iloc[0] if eid in emp["EmployeeID"].values else eid
+                        flags.append({"type": "Volatile Shift Switch", "severity": "warning", "text": f"{nm}: {cnt} shift changes in last 2 weeks"})
+            
+            if not lcec.empty:
+                idx = week_ranges.index(eval_week)
+                start_idx = max(0, idx - 1)
+                lc_2wk = lcec[lcec["Week Period"].isin(week_ranges[start_idx:idx+1])]
+                lc_sc = req_scope(lc_2wk, emp_ids, t)
+                lc_counts = lc_sc.groupby("Employee_ID").size()
+                for eid, cnt in lc_counts.items():
+                    if cnt >= 2:
+                        nm = emp[emp["EmployeeID"] == eid]["FullNameEN"].iloc[0] if eid in emp["EmployeeID"].values else eid
+                        flags.append({"type": "Unstable Working Time", "severity": "warning", "text": f"{nm}: {cnt} late CI/early CO requests in last 2 weeks"})
+
+            flags_out[eval_week][sk] = flags
+            # active_flags update logic is already handled in KPI loop for cur_week, we won't rewrite that part.
+
+        # 2. Extensive late incidents
+        for sk in scope_keys:
+            t, c    = sk.split("||")
+            emp_ids = emp_lkp[(t, c)]
+            rows    = []
+            # we only do for eval_week, previously it was all 4 weeks aggregated, now it's per week.
+            a_wk = att_scope(att_by_wk[eval_week], emp_ids, t, c)
             wkd  = a_wk[a_wk["Is_Weekend"] == 0]
             lco  = wkd["Late_CO (mins)"] if "Late_CO (mins)" in wkd.columns else pd.Series(dtype=float)
             bad  = wkd[lco > LATE_CO_FLAG_MINS]
@@ -798,322 +817,202 @@ def build_dash_data(proc, scopes, week_ranges):
                     "working_hours": round(safe_float(r.get("Số giờ làm việc thực tế")), 2),
                     "late_co_mins":  safe_int(r.get("Late_CO (mins)")),
                 })
-        incidents_out[sk] = rows
+            incidents_out[eval_week][sk] = rows
 
-    # --- Top avg working hours (current week) ----------------
-    print("[6] Computing top working-hours employees…")
-    top_hours_out = {}
-    actual_col = "Số giờ làm việc thực tế"
-    for sk in scope_keys:
-        t, c    = sk.split("||")
-        emp_ids = emp_lkp[(t, c)]
-        a_wk    = att_scope(att_by_wk[cur_week], emp_ids, t, c)
-        work    = a_wk[(a_wk["Is_Weekend"] == 0) & a_wk["Type of Date"].isin(["FullWorkDay", "HalfWorkDay"])]
-        if work.empty or actual_col not in work.columns:
-            top_hours_out[sk] = []
-            continue
-        grp = work.groupby("Employee_ID").agg(
-            avg_hours     =(actual_col,                "mean"),
-            name          =("DIM_Employee.FullNameEN", "first"),
-            team          =("DIM_Employee.Team",       "first"),
-            client        =("DIM_Employee.Client",     "first"),
-        ).sort_values("avg_hours", ascending=False).head(10)
-        top_hours_out[sk] = [
-            {"name": str(r["name"]), "team": str(r["team"]),
-             "client": str(r["client"]), "value": round(float(r["avg_hours"]), 2)}
-            for _, r in grp.iterrows()
-        ]
-
-    # --- Team ranking (current week, per client scope) -------
-    print("[7] Computing team rankings…")
-    team_ranking_out = {}
-    for cs in clients:
-        lci_rank, adh_rank = [], []
-        for ts in teams[1:]:
-            sk = f"{ts}||{cs}"
-            if sk not in data_out:
+        # 3. Top avg working hours
+        actual_col = "Số giờ làm việc thực tế"
+        for sk in scope_keys:
+            t, c    = sk.split("||")
+            emp_ids = emp_lkp[(t, c)]
+            a_wk    = att_scope(att_by_wk[eval_week], emp_ids, t, c)
+            work    = a_wk[(a_wk["Is_Weekend"] == 0) & a_wk["Type of Date"].isin(["FullWorkDay", "HalfWorkDay"])]
+            if work.empty or actual_col not in work.columns:
+                top_hours_out[eval_week][sk] = []
                 continue
-            lci_v = data_out[sk]["late_checkin_rate"][-1] if data_out[sk]["late_checkin_rate"] else 0
-            adh_v = data_out[sk]["adherence_rate"][-1]    if data_out[sk]["adherence_rate"]    else 0
+            grp = work.groupby("Employee_ID").agg(
+                avg_hours     =(actual_col,                "mean"),
+                name          =("DIM_Employee.FullNameEN", "first"),
+                team          =("DIM_Employee.Team",       "first"),
+                client        =("DIM_Employee.Client",     "first"),
+            ).sort_values("avg_hours", ascending=False).head(10)
+            top_hours_out[eval_week][sk] = [
+                {"name": str(r["name"]), "team": str(r["team"]),
+                 "client": str(r["client"]), "value": round(float(r["avg_hours"]), 2)}
+                for _, r in grp.iterrows()
+            ]
 
-            # top employees for tooltip
-            emp_ids   = emp_lkp[(ts, cs)]
-            a_wk      = att_scope(att_by_wk[cur_week], emp_ids, ts, cs)
-            wkd_r     = a_wk[a_wk["Is_Weekend"] == 0]
-            work_r    = wkd_r[wkd_r["Type of Date"].isin(["FullWorkDay", "HalfWorkDay"])]
+        # 4. Team ranking
+        for cs in clients:
+            lci_rank, adh_rank = [], []
+            for ts in teams[1:]:
+                sk = f"{ts}||{cs}"
+                if sk not in data_out:
+                    continue
+                # For eval_week, get the index
+                wk_idx = week_ranges.index(eval_week)
+                lci_v = data_out[sk]["late_checkin_rate"][wk_idx] if data_out[sk]["late_checkin_rate"] else 0
+                adh_v = data_out[sk]["adherence_rate"][wk_idx]    if data_out[sk]["adherence_rate"]    else 0
 
-            top_lci_emps, top_adh_emps = [], []
-            if "Late_CI (mins)" in wkd_r.columns:
-                late_r = wkd_r[wkd_r["Late_CI (mins)"] > LATE_CI_THRESHOLD_MINS]
-                if not late_r.empty:
-                    g = late_r.groupby("Employee_ID").agg(
-                        v=("Late_CI (mins)", "mean"), nm=("DIM_Employee.FullNameEN", "first")
-                    ).nlargest(3, "v")
-                    top_lci_emps = [{"name": str(r["nm"]), "value": round(float(r["v"]), 1)} for _, r in g.iterrows()]
+                emp_ids   = emp_lkp[(ts, cs)]
+                a_wk      = att_scope(att_by_wk[eval_week], emp_ids, ts, cs)
+                wkd_r     = a_wk[a_wk["Is_Weekend"] == 0]
+                work_r    = wkd_r[wkd_r["Type of Date"].isin(["FullWorkDay", "HalfWorkDay"])]
 
-            std_c = "Số giờ làm việc tiêu chuẩn"
-            if actual_col in work_r.columns and std_c in work_r.columns and len(work_r) > 0:
-                def adh_emp(g):
-                    s = g[std_c].sum()
-                    return 100 * g[actual_col].sum() / s if s > 0 else 0
-                g = work_r.groupby("Employee_ID").apply(adh_emp).reset_index(name="adh")
-                g["nm"] = g["Employee_ID"].map(
-                    work_r.groupby("Employee_ID")["DIM_Employee.FullNameEN"].first()
-                )
-                top_adh_emps = [
-                    {"name": str(r["nm"]), "value": round(float(r["adh"]), 1)}
-                    for _, r in g.nlargest(3, "adh").iterrows()
-                ]
+                top_lci_emps, top_adh_emps = [], []
+                if "Late_CI (mins)" in wkd_r.columns:
+                    late_r = wkd_r[wkd_r["Late_CI (mins)"] > LATE_CI_THRESHOLD_MINS]
+                    if not late_r.empty:
+                        g = late_r.groupby("Employee_ID").agg(
+                            v=("Late_CI (mins)", "mean"), nm=("DIM_Employee.FullNameEN", "first")
+                        ).nlargest(3, "v")
+                        top_lci_emps = [{"name": str(r["nm"]), "value": round(float(r["v"]), 1)} for _, r in g.iterrows()]
 
-            if lci_v > 0 or data_out.get(sk, {}).get("total_weekday_records", [0])[-1] > 0:
-                lci_rank.append({"team": ts, "value": lci_v, "topEmployees": top_lci_emps})
-            if adh_v > 0:
-                adh_rank.append({"team": ts, "value": adh_v, "topEmployees": top_adh_emps})
+                std_c = "Số giờ làm việc tiêu chuẩn"
+                if actual_col in work_r.columns and std_c in work_r.columns and len(work_r) > 0:
+                    def adh_emp(g):
+                        s = g[std_c].sum()
+                        return 100 * g[actual_col].sum() / s if s > 0 else 0
+                    g = work_r.groupby("Employee_ID").apply(adh_emp).reset_index(name="adh")
+                    g["nm"] = g["Employee_ID"].map(
+                        work_r.groupby("Employee_ID")["DIM_Employee.FullNameEN"].first()
+                    )
+                    top_adh_emps = [
+                        {"name": str(r["nm"]), "value": round(float(r["adh"]), 1)}
+                        for _, r in g.nlargest(3, "adh").iterrows()
+                    ]
 
-        lci_rank.sort(key=lambda x: -x["value"])
-        adh_rank.sort(key=lambda x: x["value"])
-        team_ranking_out[cs] = {"late_checkin_rate": lci_rank, "adherence_rate": adh_rank}
+                if lci_v > 0 or data_out.get(sk, {}).get("total_weekday_records", [0])[wk_idx] > 0:
+                    lci_rank.append({"team": ts, "value": lci_v, "topEmployees": top_lci_emps})
+                if adh_v > 0:
+                    adh_rank.append({"team": ts, "value": adh_v, "topEmployees": top_adh_emps})
 
-    # --- Leave calendar heatmaps -----------------------------
-    print("[8]  Building leave heatmaps…")
+            lci_rank.sort(key=lambda x: -x["value"])
+            adh_rank.sort(key=lambda x: x["value"])
+            team_ranking_out[eval_week][cs] = {"late_checkin_rate": lci_rank, "adherence_rate": adh_rank}
 
-    def build_calendar(week_period_str, is_next=False):
-        """Build per-scope leave concentration data for a single week."""
-        if leave.empty:
-            return {}
-        cal_mon, cal_fri = parse_week_mon_fri(week_period_str)
-        weekdays = [(cal_mon + timedelta(days=i)) for i in range(5)]
-        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-
-        # For next week, filter by Leave_From date range
-        if is_next:
-            l_wk = leave[(leave["Leave_From"] >= cal_mon) & (leave["Leave_From"] <= cal_fri)]
-        else:
-            l_wk = req_week(leave, week_period_str, "Leave_From")
-        l_appr = l_wk[l_wk["Status_Flag"] == 1]
-
-        cal_keys = ([f"All Teams||{c}" for c in clients[1:]]
-                    + [f"All Teams||All Clients"]
-                    + [f"{t}||{c}" for t in teams[1:] for c in t2c.get(t, [])])
-        cal = {}
-        for sk in cal_keys:
-            tt, cc = sk.split("||")
-            emp_ids = emp_lkp[(tt, cc)]
-            headcount = len(emp_ids)
-            if headcount == 0:
-                continue
-            l_scope = l_appr[l_appr["Employee_ID"].isin(emp_ids)]
-            days = []
-            for day_dt, day_nm in zip(weekdays, day_names):
-                on_leave_names = []
-                for _, r in l_scope.iterrows():
-                    lf = r.get("Leave_From")
-                    lt = r.get("Leave_To")
-                    if pd.notna(lf) and pd.notna(lt) and lf.date() <= day_dt.date() <= lt.date():
-                        nm = r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""
-                        on_leave_names.append(str(nm))
-                cnt = len(on_leave_names)
-                days.append({
-                    "weekday": day_nm,
-                    "date": day_dt.strftime("%d/%m"),
-                    "on_leave_count": cnt,
-                    "total_headcount": headcount,
-                    "pct": pct(cnt, headcount),
-                    "avg_prior_weeks": 0.0,
-                    "employees": on_leave_names,
-                    "elevated": False,
-                })
-            cal[sk] = {"headcount": headcount, "days": days}
-        return cal
-
-    cur_cal  = build_calendar(cur_week, is_next=False)
-    next_mon = cur_mon + timedelta(days=7)
-    next_fri = cur_fri + timedelta(days=7)
-    next_wp  = f"{next_mon.strftime('%d/%m/%Y')} - {next_fri.strftime('%d/%m/%Y')}"
-    next_cal = build_calendar(next_wp, is_next=True)
-
-    # Pad missing keys in next_cal with zero rows
-    for sk, entry in cur_cal.items():
-        if sk not in next_cal:
-            next_cal[sk] = {
-                "headcount": entry["headcount"],
-                "days": [
-                    {**d, "on_leave_count": 0, "pct": 0, "employees": [], "elevated": False}
-                    for d in entry["days"]
-                ],
-            }
-
-    # Compute avg_prior_weeks & elevated for cur_cal
-    if not leave.empty:
-        prior_weeks = week_ranges[:-1]
-        for sk, entry in cur_cal.items():
-            tt, cc = sk.split("||")
-            emp_ids = emp_lkp[(tt, cc)]
-            l_appr_all = leave[leave["Status_Flag"] == 1]
-            l_scope_all = l_appr_all[l_appr_all["Employee_ID"].isin(emp_ids)]
-            for i, day_info in enumerate(entry["days"]):
-                prior_cnts = []
-                for pw in prior_weeks:
-                    pw_mon, _ = parse_week_mon_fri(pw)
-                    pw_day    = pw_mon + timedelta(days=i)
-                    cnt = 0
-                    for _, r in l_scope_all.iterrows():
+        # 5. Leave calendar heatmaps
+        def build_calendar(week_period_str, is_next=False):
+            if leave.empty: return {}
+            cal_mon, cal_fri = parse_week_mon_fri(week_period_str)
+            weekdays = [(cal_mon + timedelta(days=i)) for i in range(5)]
+            day_names = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+            if is_next:
+                l_wk = leave[(leave["Leave_From"] >= cal_mon) & (leave["Leave_From"] <= cal_fri)]
+            else:
+                l_wk = req_week(leave, week_period_str, "Leave_From")
+            l_appr = l_wk[l_wk["Status_Flag"] == 1]
+            cal_keys = ([f"All Teams||{c}" for c in clients[1:]] + [f"All Teams||All Clients"] + [f"{t}||{c}" for t in teams[1:] for c in t2c.get(t, [])])
+            cal = {}
+            for sk in cal_keys:
+                tt, cc = sk.split("||")
+                emp_ids = emp_lkp[(tt, cc)]
+                headcount = len(emp_ids)
+                if headcount == 0: continue
+                l_scope = l_appr[l_appr["Employee_ID"].isin(emp_ids)]
+                days = []
+                for day_dt, day_nm in zip(weekdays, day_names):
+                    on_leave_names = []
+                    for _, r in l_scope.iterrows():
                         lf = r.get("Leave_From"); lt = r.get("Leave_To")
-                        if pd.notna(lf) and pd.notna(lt) and lf.date() <= pw_day.date() <= lt.date():
-                            cnt += 1
-                    prior_cnts.append(cnt)
-                avg_p = round(sum(prior_cnts) / len(prior_cnts), 1) if prior_cnts else 0.0
-                cur_c = day_info["on_leave_count"]
-                entry["days"][i]["avg_prior_weeks"] = avg_p
-                entry["days"][i]["elevated"] = (cur_c > 0 and cur_c > avg_p * 1.5 and cur_c > avg_p + 0.5)
+                        if pd.notna(lf) and pd.notna(lt) and lf.date() <= day_dt.date() <= lt.date():
+                            nm = r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""
+                            on_leave_names.append(str(nm))
+                    cnt = len(on_leave_names)
+                    days.append({
+                        "weekday": day_nm, "date": day_dt.strftime("%d/%m"),
+                        "on_leave_count": cnt, "total_headcount": headcount, "pct": pct(cnt, headcount),
+                        "avg_prior_weeks": 0.0, "employees": on_leave_names, "elevated": False,
+                    })
+                cal[sk] = {"headcount": headcount, "days": days}
+            return cal
 
-    # --- Leave detail tables ---------------------------------
-    print("[9] Building leave detail tables…")
-    all_table_keys = (["All Teams||All Clients"]
-                      + [f"{t}||All Clients" for t in teams[1:]]
-                      + [f"All Teams||{c}" for c in clients[1:]]
-                      + [f"{t}||{c}" for t in teams[1:] for c in t2c.get(t, [])])
+        e_cal  = build_calendar(eval_week, is_next=False)
+        n_cal  = build_calendar(next_wp, is_next=True)
+        for sk, entry in e_cal.items():
+            if sk not in n_cal:
+                n_cal[sk] = {"headcount": entry["headcount"], "days": [{**d, "on_leave_count": 0, "pct": 0, "employees": [], "elevated": False} for d in entry["days"]]}
+        
+        # Compute avg_prior_weeks for e_cal
+        if not leave.empty:
+            wk_idx = week_ranges.index(eval_week)
+            prior_weeks = week_ranges[:wk_idx] if wk_idx > 0 else []
+            for sk, entry in e_cal.items():
+                tt, cc = sk.split("||")
+                emp_ids = emp_lkp[(tt, cc)]
+                l_appr_all = leave[leave["Status_Flag"] == 1]
+                l_scope_all = l_appr_all[l_appr_all["Employee_ID"].isin(emp_ids)]
+                for i, day_info in enumerate(entry["days"]):
+                    prior_cnts = []
+                    for pw in prior_weeks:
+                        pw_mon, _ = parse_week_mon_fri(pw)
+                        pw_day    = pw_mon + timedelta(days=i)
+                        cnt = sum(1 for _, r in l_scope_all.iterrows() if pd.notna(r.get("Leave_From")) and pd.notna(r.get("Leave_To")) and r["Leave_From"].date() <= pw_day.date() <= r["Leave_To"].date())
+                        prior_cnts.append(cnt)
+                    avg_p = round(sum(prior_cnts) / len(prior_cnts), 1) if prior_cnts else 0.0
+                    cur_c = day_info["on_leave_count"]
+                    entry["days"][i]["avg_prior_weeks"] = avg_p
+                    entry["days"][i]["elevated"] = (cur_c > 0 and cur_c > avg_p * 1.5 and cur_c > avg_p + 0.5)
 
-    def leave_detail_table(week_period_str, is_next=False):
-        if leave.empty:
-            return {sk: [] for sk in all_table_keys}
-        if is_next:
-            l_wk = leave[(leave["Leave_From"] >= next_mon) & (leave["Leave_From"] <= next_fri)]
-        else:
-            l_wk = req_week(leave, week_period_str, "Leave_From")
-        result = {}
+        leave_calendar[eval_week] = e_cal
+        leave_calendar_next[eval_week] = n_cal
+
+        # 6. Detail tables
+        all_table_keys = (["All Teams||All Clients"] + [f"{t}||All Clients" for t in teams[1:]] + [f"All Teams||{c}" for c in clients[1:]] + [f"{t}||{c}" for t in teams[1:] for c in t2c.get(t, [])])
+        
+        # Leave tables
+        l_cur_res, l_next_res = {}, {}
         for sk in all_table_keys:
-            tt, cc = sk.split("||")
-            emp_ids = emp_lkp[(tt, cc)]
-            l_sc    = req_scope(l_wk, emp_ids, tt)
-            result[sk] = [
-                {"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""),
-                 "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")),
-                 "days": safe_float(r.get("Leave Days in Week")),
-                 "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""),
-                 "notice_category": str(r.get("notice_category", "Unknown")),
-                 "status": str(r.get("Status", ""))}
-                for _, r in l_sc.iterrows()
-            ]
-        return result
-
-    leave_cur  = leave_detail_table(cur_week, is_next=False)
-    leave_next = leave_detail_table(next_wp,  is_next=True)
-
-    # --- OT detail table -------------------------------------
-    def ot_table():
-        result = {}
-        for sk in all_table_keys:
-            tt, cc  = sk.split("||")
-            emp_ids = emp_lkp[(tt, cc)]
-            if ot.empty:
-                result[sk] = []; continue
-            if "Week Period" in ot.columns:
-                o_wk = ot[ot["Week Period"].isin(week_ranges)]
+            tt, cc = sk.split("||"); emp_ids = emp_lkp[(tt, cc)]
+            # Current
+            if leave.empty: l_cur_res[sk] = []
             else:
-                o_wk = ot
-            o_sc  = req_scope(o_wk, emp_ids, tt)
-            o_app = o_sc[o_sc["Status_Flag"] == 1]
-            nc    = name_col(o_app)
-            result[sk] = [
-                {"name":   str(r.get(nc) or r.get("Employee_Name") or ""),
-                 "date":   fmt_date(r.get("OT Date") or r.get("OT_From")),
-                 "hours":  safe_float(r.get("OT_Hours")),
-                 "timing": str(r.get("OT_Timing", "")),
-                 "reason": str(r.get("Reason", "")),
-                 "status": str(r.get("Status", ""))}
-                for _, r in o_app.iterrows()
-            ]
-        return result
-
-    # --- WFH detail table ------------------------------------
-    def wfh_table():
-        result = {}
-        for sk in all_table_keys:
-            tt, cc  = sk.split("||")
-            emp_ids = emp_lkp[(tt, cc)]
-            if wfh.empty:
-                result[sk] = []; continue
-            if "Week Period" in wfh.columns:
-                w_wk = wfh[wfh["Week Period"].isin(week_ranges)]
+                l_wk = req_week(leave, eval_week, "Leave_From"); l_sc = req_scope(l_wk, emp_ids, tt)
+                l_cur_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": safe_float(r.get("Leave Days in Week")), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows()]
+            # Next
+            if leave.empty: l_next_res[sk] = []
             else:
-                w_wk = wfh
-            w_sc  = req_scope(w_wk, emp_ids, tt)
-            w_app = w_sc[w_sc["Status_Flag"] == 1]
-            nc    = name_col(w_app)
-            result[sk] = [
-                {"name":   str(r.get(nc) or ""),
-                 "from":   fmt_date(r.get("WFH_From")),
-                 "to":     fmt_date(r.get("WFH_To")),
-                 "reason": str(r.get("Reason", "")),
-                 "status": str(r.get("Status", ""))}
-                for _, r in w_app.iterrows()
-            ]
-        return result
+                l_wk = leave[(leave["Leave_From"] >= next_mon) & (leave["Leave_From"] <= next_fri)]; l_sc = req_scope(l_wk, emp_ids, tt)
+                l_next_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": safe_float(r.get("Leave Days in Week")), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows()]
+        leave_details_current[eval_week] = l_cur_res
+        leave_details_next[eval_week] = l_next_res
 
-    # --- Request detail tables -------------------------------
-    def req_detail_tables():
+        # OT & WFH
+        ot_res, wfh_res = {}, {}
+        for sk in all_table_keys:
+            tt, cc = sk.split("||"); emp_ids = emp_lkp[(tt, cc)]
+            if ot.empty: ot_res[sk] = []
+            else:
+                o_wk = req_week(ot, eval_week, "_ot_date")
+                o_sc = req_scope(o_wk, emp_ids, tt); o_app = o_sc[o_sc["Status_Flag"] == 1]; nc = name_col(o_app)
+                ot_res[sk] = [{"name": str(r.get(nc) or r.get("Employee_Name") or ""), "date": fmt_date(r.get("OT Date") or r.get("OT_From")), "hours": safe_float(r.get("OT_Hours")), "timing": str(r.get("OT_Timing", "")), "reason": str(r.get("Reason", "")), "status": str(r.get("Status", ""))} for _, r in o_app.iterrows()]
+            
+            if wfh.empty: wfh_res[sk] = []
+            else:
+                w_wk = req_week(wfh, eval_week, "WFH_From")
+                w_sc = req_scope(w_wk, emp_ids, tt); w_app = w_sc[w_sc["Status_Flag"] == 1]; nc = name_col(w_app)
+                wfh_res[sk] = [{"name": str(r.get(nc) or ""), "from": fmt_date(r.get("WFH_From")), "to": fmt_date(r.get("WFH_To")), "reason": str(r.get("Reason", "")), "status": str(r.get("Status", ""))} for _, r in w_app.iterrows()]
+        ot_details[eval_week] = ot_res
+        wfh_details[eval_week] = wfh_res
+
+        # Request details (LCEC, Trip, SC)
         lcec_r, trip_r, sc_r = {}, {}, {}
         for sk in all_table_keys:
-            tt, cc  = sk.split("||")
-            emp_ids = emp_lkp[(tt, cc)]
-
-            # LCEC
+            tt, cc = sk.split("||"); emp_ids = emp_lkp[(tt, cc)]
             if not lcec.empty:
-                lc_wk  = req_week(lcec, cur_week, "Apply_From")
-                lc_sc  = req_scope(lc_wk, emp_ids, tt)
-                lc_app = lc_sc[lc_sc["Status_Flag"] == 1]
-                nc     = name_col(lc_app)
-                lcec_r[sk] = [
-                    {"name":        str(r.get(nc) or ""),
-                     "date":        fmt_date(r.get("Apply_From")),
-                     "ci_category": str(r.get("CI_Category_Mapped", "")),
-                     "co_category": str(r.get("CO_Category_Mapped", "")),
-                     "minutes":     safe_float(r.get("Minutes")),
-                     "reason":      str(r.get("Reason_Detail") or r.get("Reason_Group") or ""),
-                     "status":      str(r.get("Status", ""))}
-                    for _, r in lc_app.iterrows()
-                ]
-            else:
-                lcec_r[sk] = []
-
-            # Business trips
+                lc_wk = req_week(lcec, eval_week, "Apply_From"); lc_sc = req_scope(lc_wk, emp_ids, tt); lc_app = lc_sc[lc_sc["Status_Flag"] == 1]; nc = name_col(lc_app)
+                lcec_r[sk] = [{"name": str(r.get(nc) or ""), "date": fmt_date(r.get("Apply_From")), "ci_category": str(r.get("CI_Category_Mapped", "")), "co_category": str(r.get("CO_Category_Mapped", "")), "minutes": safe_float(r.get("Minutes")), "reason": str(r.get("Reason_Detail") or r.get("Reason_Group") or ""), "status": str(r.get("Status", ""))} for _, r in lc_app.iterrows()]
+            else: lcec_r[sk] = []
+            
             if not trip.empty:
-                tr_wk  = req_week(trip, cur_week, "Trip_From")
-                tr_sc  = req_scope(tr_wk, emp_ids, tt)
-                tr_app = tr_sc[tr_sc["Status_Flag"] == 1]
-                trip_r[sk] = [
-                    {"name":        str(r.get("Employee_Name") or ""),
-                     "from":        fmt_date(r.get("Trip_From")),
-                     "to":          fmt_date(r.get("Trip_To")),
-                     "days":        safe_float(r.get("Trip_Days")),
-                     "destination": str(r.get("Destination", "")),
-                     "purpose":     str(r.get("Purpose", "")),
-                     "status":      str(r.get("Status", ""))}
-                    for _, r in tr_app.iterrows()
-                ]
-            else:
-                trip_r[sk] = []
-
-            # Shift change
+                tr_wk = req_week(trip, eval_week, "Trip_From"); tr_sc = req_scope(tr_wk, emp_ids, tt); tr_app = tr_sc[tr_sc["Status_Flag"] == 1]
+                trip_r[sk] = [{"name": str(r.get("Employee_Name") or ""), "from": fmt_date(r.get("Trip_From")), "to": fmt_date(r.get("Trip_To")), "days": safe_float(r.get("Trip_Days")), "destination": str(r.get("Destination", "")), "purpose": str(r.get("Purpose", "")), "status": str(r.get("Status", ""))} for _, r in tr_app.iterrows()]
+            else: trip_r[sk] = []
+            
             if not sc.empty:
-                sc_wk  = req_week(sc, cur_week, "Work_Date")
-                sc_sc  = req_scope(sc_wk, emp_ids, tt)
-                sc_app = sc_sc[sc_sc["Status_Flag"] == 1]
-                nc     = name_col(sc_app)
-                sc_r[sk] = [
-                    {"name":      str(r.get(nc) or r.get("Employee_Name") or ""),
-                     "date":      fmt_date(r.get("Work_Date")),
-                     "old_shift": str(r.get("Shift_Code_Old", "")),
-                     "new_shift": str(r.get("Shift_Code_New", "")),
-                     "reason":    str(r.get("Reason", "")),
-                     "status":    str(r.get("Status", ""))}
-                    for _, r in sc_app.iterrows()
-                ]
-            else:
-                sc_r[sk] = []
-
-        return {"lcec": lcec_r, "trip": trip_r, "shift_change": sc_r}
+                sc_wk = req_week(sc, eval_week, "Work_Date"); sc_sc = req_scope(sc_wk, emp_ids, tt); sc_app = sc_sc[sc_sc["Status_Flag"] == 1]; nc = name_col(sc_app)
+                sc_r[sk] = [{"name": str(r.get(nc) or r.get("Employee_Name") or ""), "date": fmt_date(r.get("Work_Date")), "old_shift": str(r.get("Shift_Code_Old", "")), "new_shift": str(r.get("Shift_Code_New", "")), "reason": str(r.get("Reason", "")), "status": str(r.get("Status", ""))} for _, r in sc_app.iterrows()]
+            else: sc_r[sk] = []
+        request_details[eval_week] = {"lcec": lcec_r, "trip": trip_r, "shift_change": sc_r}
 
     def build_attendance_dashboard(att, emp, leave, week_ranges):
         import random
@@ -1240,13 +1139,13 @@ def build_dash_data(proc, scopes, week_ranges):
         "extensive_late_incidents": incidents_out,
         "top_avg_working_hours":    top_hours_out,
         "team_ranking":             team_ranking_out,
-        "leave_calendar":           cur_cal,
-        "leave_calendar_next":      next_cal,
-        "leave_details_current":    leave_cur,
-        "leave_details_next":       leave_next,
-        "ot_details":               ot_table(),
-        "wfh_details":              wfh_table(),
-        "request_details":          req_detail_tables(),
+        "leave_calendar":           leave_calendar,
+        "leave_calendar_next":      leave_calendar_next,
+        "leave_details_current":    leave_details_current,
+        "leave_details_next":       leave_details_next,
+        "ot_details":               ot_details,
+        "wfh_details":              wfh_details,
+        "request_details":          request_details,
         "attendance_dashboard":     build_attendance_dashboard(att, emp, leave, week_ranges),
         "next_week_range":          f"{next_mon.strftime('%b %d').replace(' 0',' ')}, "
                                     f"{next_fri.strftime('%b %d').replace(' 0',' ')}, {next_mon.strftime('%y')}",
@@ -1287,6 +1186,10 @@ def export_json(dash_data):
     with open(DATA_JSON_PATH, "w", encoding="utf-8") as f:
         f.write(json_str)
     print(f"   OK data.json written  ({len(json_str):,} bytes)")
+    print(f"\n[>>] Writing  {DATA_JS_PATH}")
+    with open(DATA_JS_PATH, "w", encoding="utf-8") as f:
+        f.write("window.DASH_DATA = " + json_str + ";")
+    print(f"   OK data.js written")
 
 # ═══════════════════════════════════════════════════════════════
 # ENTRY POINT

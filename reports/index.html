@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Workforce Attendance Dashboard</title>
+<script src="../references/data.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
@@ -1482,6 +1483,12 @@ window.nextDate = () => {
 
 async function loadDashboardData() {
   try {
+    if (window.DASH_DATA) {
+      D = window.DASH_DATA;
+      initUI();
+      renderAll();
+      return;
+    }
     const response = await fetch(`../references/data.json?t=${new Date().getTime()}`);
     if (!response.ok) throw new Error("HTTP error " + response.status);
     const data = await response.json();
