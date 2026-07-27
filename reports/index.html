@@ -19,15 +19,15 @@
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--slate);}
+  .sticky-bar{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.07);}
   .app{max-width:98%;margin:0 auto;padding:20px 24px 60px;}
-
-  header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:20px;}
+  header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;padding:14px 24px 10px;margin:0;}
   h1{font-size:21px;font-weight:600;margin:0;color:var(--navy);}
   .sub{font-size:13px;color:var(--muted);margin-top:3px;}
   .controls{display:flex;gap:10px;align-items:center;}
   select{font-size:13px;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--slate);min-width:150px;}
 
-  nav{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto;}
+  nav{display:flex;gap:2px;overflow-x:auto;padding:0 24px 4px;margin:0;border-bottom:none;}
   .tab{padding:10px 16px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;user-select:none;}
   .tab:hover{color:var(--navy);}
   .tab.active{color:var(--navy);font-weight:600;border-bottom-color:var(--navy);}
@@ -108,6 +108,7 @@
 <body>
 <div class="app">
 
+<div class="sticky-bar">
   <header>
     <div>
       <h1>Workforce Attendance Dashboard</h1>
@@ -121,6 +122,7 @@
   </header>
 
   <nav id="tabNav"></nav>
+</div>
 
   <!-- OVERVIEW -->
   <div class="page" id="page-overview">
