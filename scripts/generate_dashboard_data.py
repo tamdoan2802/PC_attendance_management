@@ -302,17 +302,20 @@ def preprocess(raw):
 # ═══════════════════════════════════════════════════════════════
 
 def detect_weeks(att, n=TRAILING_WEEKS):
-    """Return n most-recent Mon–Fri week period strings, oldest first."""
-    periods = att["Week Period"].dropna().unique()
-    parsed = []
-    for s in periods:
-        try:
-            mon, _ = parse_week_mon_fri(s)
-            parsed.append((mon, s))
-        except Exception:
-            pass
-    parsed.sort(key=lambda x: x[0])
-    return [s for _, s in parsed[-n:]]
+    """Return n most-recent Mon–Fri week period strings, ending with the current system week."""
+    import pandas as pd
+    now = pd.Timestamp.now()
+    curr_mon = now - pd.Timedelta(days=now.weekday())
+    curr_mon = curr_mon.normalize()
+    start_mon = curr_mon - pd.Timedelta(days=7*(n-1))
+    
+    ranges = []
+    for i in range(n):
+        m = start_mon + pd.Timedelta(days=7*i)
+        f = m + pd.Timedelta(days=4)
+        s = f"{m.strftime('%d/%m/%Y')} - {f.strftime('%d/%m/%Y')}"
+        ranges.append(s)
+    return ranges
 
 def build_scopes(emp):
     """Derive teams, clients, and their mappings from active DIM_Employee rows."""
