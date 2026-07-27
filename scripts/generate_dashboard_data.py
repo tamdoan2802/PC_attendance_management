@@ -1130,6 +1130,7 @@ def build_dash_data(proc, scopes, week_ranges):
     return {
         "weeks":                [week_label(w) for w in week_ranges],
         "week_ranges":          [week_range_label(w) for w in week_ranges],
+        "week_keys":            list(week_ranges),
         "teams":                teams,
         "clients":              clients,
         "team_to_clients":      t2c,
