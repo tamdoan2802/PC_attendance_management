@@ -21,50 +21,8 @@ def step_1_download_misa():
         print("[CẢNH BÁO] Script tải MISA bị lỗi. Vẫn tiếp tục xử lý với dữ liệu cũ...")
 
 def step_2_refresh_excel():
-    print(f"\n[BƯỚC 2] Làm mới PowerQuery trong {EXCEL_PATH.name}...")
-    if not EXCEL_PATH.exists():
-        print(f"[LỖI] Không tìm thấy file Excel tại {EXCEL_PATH}")
-        return
-
-    xl = None
-    wb = None
-    try:
-        xl = win32com.client.DispatchEx("Excel.Application")
-        xl.Visible = False # Chạy ngầm
-        xl.DisplayAlerts = False # Tắt popup cảnh báo
-        wb = xl.Workbooks.Open(str(EXCEL_PATH))
-        
-        print("Đang refresh các QueryTable liên quan đến Request...")
-        for sheet in wb.Sheets:
-            for lo in sheet.ListObjects:
-                if "Req_" in lo.Name:
-                    try:
-                        # Ép refresh đồng bộ từng bảng
-                        lo.QueryTable.Refresh(BackgroundQuery=False)
-                        print(f" Đã refresh bảng {lo.Name} trên sheet {sheet.Name}")
-                    except Exception:
-                        pass
-                    
-        print("Đang refresh các Connection liên quan đến Request...")
-        for conn in wb.Connections:
-            if "Req_" in conn.Name:
-                try:
-                    conn.Refresh()
-                    print(f" Đã refresh connection {conn.Name}")
-                except Exception:
-                    pass
-                
-        print("Làm mới PowerQuery xong. Đang lưu Excel...")
-        wb.Save()
-        print("Lưu Excel thành công.")
-    except Exception as e:
-        print(f"[LỖI] Lỗi khi Refresh Excel: {e}")
-    finally:
-        if wb:
-            wb.Close(False)
-        if xl:
-            xl.DisplayAlerts = True
-            xl.Quit()
+    print("\n[BƯỚC 2] Kiến trúc mới đã đọc trực tiếp 100% từ Raw Timesheets & Entities.")
+    print("         Bỏ qua bước làm mới PowerQuery Excel trung gian.")
 
 def step_3_generate_json():
     print("\n[BƯỚC 3] Chạy ETL script để tạo data.json...")
@@ -100,7 +58,7 @@ def step_4_git_deploy():
         git_cmd = get_git_executable()
         
         print("Git add...")
-        subprocess.run([git_cmd, "add", "reports/index.html", "references/data.json", "references/data.js"], cwd=repo_dir, check=True)
+        subprocess.run([git_cmd, "add", "reports/index.html", "references/data.json", "references/data.js", "scripts/generate_dashboard_data.py"], cwd=repo_dir, check=True)
         
         print("Git commit...")
         commit_msg = f"Auto-sync from MISA at {time.strftime('%Y-%m-%d %H:%M:%S')}"

@@ -2,4 +2,6 @@
 *.py[cod]
 .DS_Store
 Thumbs.db
+latest_attendance_report.*
+data/
 
