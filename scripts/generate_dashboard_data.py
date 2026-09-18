@@ -1129,7 +1129,8 @@ def build_dash_data(proc, scopes, week_ranges):
 
             # -- Leave ------------------------------------
             if not leave.empty:
-                l_wk = leave[(leave["Leave_From"] <= fri) & (leave["Leave_To"] >= mon)]
+                fri_end = fri.replace(hour=23, minute=59, second=59)
+                l_wk = leave[(leave["Leave_From"] <= fri_end) & (leave["Leave_To"] >= mon)]
                 l_sc = req_scope(l_wk, emp_ids, t)
                 if not l_sc.empty:
                     l_sc = l_sc.copy()
@@ -1267,7 +1268,8 @@ def build_dash_data(proc, scopes, week_ranges):
 
             # Weekend-bridge leave & Short-notice leave
             if not leave.empty:
-                l_wk = leave[(leave["Leave_From"] <= eval_fri) & (leave["Leave_To"] >= eval_mon)]
+                eval_fri_end = eval_fri.replace(hour=23, minute=59, second=59)
+                l_wk = leave[(leave["Leave_From"] <= eval_fri_end) & (leave["Leave_To"] >= eval_mon)]
                 l_sc = req_scope(l_wk, emp_ids, t)
                 for _, r in l_sc.iterrows():
                     nm = r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or r["Employee_ID"]
@@ -1410,9 +1412,10 @@ def build_dash_data(proc, scopes, week_ranges):
         def build_calendar(week_period_str, is_next=False):
             if leave.empty: return {}
             cal_mon, cal_fri = parse_week_mon_fri(week_period_str)
+            cal_fri_end = cal_fri.replace(hour=23, minute=59, second=59)
             weekdays = [(cal_mon + timedelta(days=i)) for i in range(5)]
             day_names = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-            l_wk = leave[(leave["Leave_From"] <= cal_fri) & (leave["Leave_To"] >= cal_mon)]
+            l_wk = leave[(leave["Leave_From"] <= cal_fri_end) & (leave["Leave_To"] >= cal_mon)]
             l_appr = l_wk[l_wk["Status_Flag"] == 1]
             cal_keys = ([f"All Teams||{c}" for c in clients[1:]] + [f"All Teams||All Clients"] + [f"{t}||{c}" for t in teams[1:] for c in t2c.get(t, [])])
             cal = {}
@@ -1479,13 +1482,15 @@ def build_dash_data(proc, scopes, week_ranges):
             # Current
             if leave.empty: l_cur_res[sk] = []
             else:
-                l_wk = leave[(leave["Leave_From"] <= eval_fri) & (leave["Leave_To"] >= eval_mon)]
+                eval_fri_end = eval_fri.replace(hour=23, minute=59, second=59)
+                l_wk = leave[(leave["Leave_From"] <= eval_fri_end) & (leave["Leave_To"] >= eval_mon)]
                 l_sc = req_scope(l_wk, emp_ids, tt)
                 l_cur_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), eval_mon, eval_fri), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows() if get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), eval_mon, eval_fri) > 0]
             # Next
             if leave.empty: l_next_res[sk] = []
             else:
-                l_wk = leave[(leave["Leave_From"] <= next_fri) & (leave["Leave_To"] >= next_mon)]
+                next_fri_end = next_fri.replace(hour=23, minute=59, second=59)
+                l_wk = leave[(leave["Leave_From"] <= next_fri_end) & (leave["Leave_To"] >= next_mon)]
                 l_sc = req_scope(l_wk, emp_ids, tt)
                 l_next_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), next_mon, next_fri), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows() if get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), next_mon, next_fri) > 0]
         leave_details_current[eval_week] = l_cur_res
@@ -1614,7 +1619,8 @@ def build_dash_data(proc, scopes, week_ranges):
                 calendars[cw] = cal_data
                 
             # Populate weekly leaves for this week cw
-            l_wk_appr = lwk[(lwk["Leave_From"] <= fri) & (lwk["Leave_To"] >= curr)]
+            fri_end = fri + pd.Timedelta(hours=23, minutes=59, seconds=59)
+            l_wk_appr = lwk[(lwk["Leave_From"] <= fri_end) & (lwk["Leave_To"] >= curr)]
             for _, r in l_wk_appr.iterrows():
                 days_in_wk = get_leave_days_in_week(
                     r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), curr, fri
