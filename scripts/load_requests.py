@@ -402,11 +402,11 @@ def load_business_trip_requests(file_path=REQ_BUSINESS_TRIP):
     
     records = []
     for _, row in df.iterrows():
-        emp_id = str(row.get('Mã nhân viên', '')).strip()
+        emp_id = str(row.get('Mã nhân viên đi công tác') or row.get('Mã nhân viên', '')).strip()
         if not emp_id or emp_id == 'nan':
             continue
-        t_from = row.get('Từ ngày')
-        t_to = row.get('Đến ngày')
+        t_from = row.get('Ngày đi') or row.get('Từ ngày')
+        t_to = row.get('Ngày về') or row.get('Đến ngày')
         if pd.isna(t_from):
             continue
         d_from = pd.to_datetime(t_from).date()
@@ -415,8 +415,8 @@ def load_business_trip_requests(file_path=REQ_BUSINESS_TRIP):
             d_from, d_to = d_to, d_from
             
         trip_days = float(row.get('Số ngày đi công tác', 1.0) or 1.0)
-        location = str(row.get('Địa điểm công tác', '')).strip()
-        purpose = str(row.get('Mục đích công tác', '')).strip()
+        location = str(row.get('Địa điểm công tác') or row.get('Địa điểm làm việc', '')).strip()
+        purpose = str(row.get('Lý do công tác') or row.get('Mục đích công tác', '')).strip()
         
         cur = d_from
         while cur <= d_to:

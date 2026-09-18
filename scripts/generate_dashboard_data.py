@@ -470,22 +470,23 @@ def load_live_requests(raw):
             df_tr = pd.read_excel(trip_file, skiprows=4)
             records = []
             for _, r in df_tr.iterrows():
-                eid = str(r.get("Mã nhân viên", "")).strip()
+                eid = str(r.get("Mã nhân viên đi công tác") or r.get("Mã nhân viên") or "").strip()
                 if not eid or eid == "nan": continue
-                t_from = pd.to_datetime(r.get("Từ ngày"), errors="coerce")
-                t_to = pd.to_datetime(r.get("Đến ngày"), errors="coerce")
+                ename = str(r.get("Nhân viên đi công tác") or r.get("Người đề nghị") or r.get("Người nộp đơn") or "").strip()
+                t_from = pd.to_datetime(r.get("Ngày đi") or r.get("Từ ngày"), errors="coerce")
+                t_to = pd.to_datetime(r.get("Ngày về") or r.get("Đến ngày"), errors="coerce")
                 if pd.isna(t_from): continue
                 if pd.isna(t_to): t_to = t_from
                 status = str(r.get("Trạng thái", "")).strip()
                 status_flag = 1 if status == "Đã duyệt" else 0
                 records.append({
                     "Employee_ID": eid,
-                    "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
+                    "Employee_Name": ename,
                     "Trip_From": t_from,
                     "Trip_To": t_to,
                     "Trip_Days": float(r.get("Số ngày đi công tác", 1.0) or 1.0),
-                    "Destination": str(r.get("Địa điểm công tác", "")).strip(),
-                    "Purpose": str(r.get("Mục đích công tác", "")).strip(),
+                    "Destination": str(r.get("Địa điểm công tác") or r.get("Địa điểm làm việc") or "").strip(),
+                    "Purpose": str(r.get("Lý do công tác") or r.get("Mục đích công tác") or "").strip(),
                     "Status": status,
                     "Status_Flag": status_flag,
                     "Week Period": date_to_week_period(t_from)
@@ -1524,8 +1525,8 @@ def build_dash_data(proc, scopes, week_ranges):
             else: lcec_r[sk] = []
             
             if not trip.empty:
-                tr_wk = req_week(trip, eval_week, "Trip_From"); tr_sc = req_scope(tr_wk, emp_ids, tt); tr_app = tr_sc[tr_sc["Status_Flag"] == 1]
-                trip_r[sk] = [{"name": str(r.get("Employee_Name") or ""), "from": fmt_date(r.get("Trip_From")), "to": fmt_date(r.get("Trip_To")), "days": safe_float(r.get("Trip_Days")), "destination": str(r.get("Destination", "")), "purpose": str(r.get("Purpose", "")), "status": str(r.get("Status", ""))} for _, r in tr_app.iterrows()]
+                tr_wk = req_week(trip, eval_week, "Trip_From"); tr_sc = req_scope(tr_wk, emp_ids, tt); tr_app = tr_sc[tr_sc["Status_Flag"] == 1]; nc = name_col(tr_app)
+                trip_r[sk] = [{"name": str(r.get(nc) or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Trip_From")), "to": fmt_date(r.get("Trip_To")), "days": safe_float(r.get("Trip_Days")), "destination": str(r.get("Destination", "")), "purpose": str(r.get("Purpose", "")), "status": str(r.get("Status", ""))} for _, r in tr_app.iterrows()]
             else: trip_r[sk] = []
             
             if not sc.empty:
