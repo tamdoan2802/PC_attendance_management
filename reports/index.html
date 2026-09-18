@@ -40,7 +40,30 @@
   .grid-3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
   .grid-2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr));}
 
-  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative;}
+  .kpi-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin:0 0 6px;}
+  .kpi-card-header .kpi-label{font-size:12.5px;color:var(--muted);margin:0;line-height:1.35;flex:1;}
+  .kpi-info-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:#94A3B8;
+    cursor:pointer;
+    padding:2px 3px;
+    border-radius:50%;
+    transition:color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    flex-shrink:0;
+    line-height:1;
+    margin-top:1px;
+    user-select:none;
+  }
+  .kpi-info-btn:hover, .kpi-info-btn:focus, .kpi-info-btn.active{
+    color:var(--navy, #1F3864);
+    background:rgba(31, 56, 100, 0.1);
+    transform:scale(1.15);
+    outline:none;
+  }
+  .kpi-info-icon{display:block;}
   .kpi-label{font-size:12.5px;color:var(--muted);margin:0 0 6px;}
   .kpi-value{font-size:26px;font-weight:600;margin:0;color:var(--navy);}
   .kpi-note{font-size:12px;margin:6px 0 0;}
@@ -110,6 +133,31 @@
     opacity:0;
     transition:opacity 0.15s ease-out;
     line-height:1.4;
+  }
+  #kpi-floating-tooltip{
+    position:fixed;
+    z-index:999999;
+    pointer-events:auto;
+    background:rgba(15, 23, 42, 0.96);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    color:#F8FAFC;
+    border:1px solid rgba(255, 255, 255, 0.16);
+    border-radius:10px;
+    padding:13px 15px;
+    box-shadow:0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4);
+    font-size:12px;
+    width:340px;
+    max-width:calc(100vw - 28px);
+    display:none;
+    opacity:0;
+    transition:opacity 0.15s ease-out, transform 0.15s ease-out;
+    line-height:1.45;
+    transform:translateY(4px);
+  }
+  #kpi-floating-tooltip.show{
+    opacity:1;
+    transform:translateY(0);
   }
   table.heatmap-table td.week-sep{padding:0;width:10px;}
   .heat-cell{border-radius:5px;padding:5px 2px;font-weight:600;font-variant-numeric:tabular-nums;position:relative;line-height:1.25;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
@@ -375,6 +423,7 @@ function initUI() {
     renderAll();
   });
   initCustomerTooltip();
+  initKpiTooltip();
 }
 
 const TABS = [
@@ -643,11 +692,410 @@ function sparklineSvg(values, color, w=150, h=32){
   </svg>`;
 }
 
-function kpiCard(label, value, note, sparkValues, sparkColor){
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const KPI_METRICS_INFO = {
+  'attendance_quality': {
+    title: 'Attendance quality',
+    vnTitle: 'Chất lượng chuyên cần & hiện diện',
+    pillar: 'Pillar 1 & 3: Punctuality & Working Time',
+    meaning: 'Tỷ lệ các ca làm việc trong tuần đạt chuẩn ngày công trọn vẹn (FullWorkDay = 1.0 công). Phản ánh mức độ hiện diện đầy đủ, không bị hụt công, vắng mặt hoặc về dở dang không phép trong các ngày làm việc tiêu chuẩn (Thứ Hai – Thứ Sáu).',
+    formula: '(Số ca FullWorkDay / Tổng số ca quy chuẩn Mon–Fri) × 100%',
+    benchmark: 'Mục tiêu: ≥ 90% – 95% (Đạt chuẩn hoạt động ổn định)',
+    color: '#0F6E56'
+  },
+  'late_checkin_rate': {
+    title: 'Late check-in rate (>5min)',
+    vnTitle: 'Tỷ lệ chấm công vào ca muộn',
+    pillar: 'Pillar 1: Punctuality (Kỷ luật đầu ca)',
+    meaning: 'Tỷ lệ phần trăm các lượt chấm công vào ca muộn hơn 5 phút so với giờ bắt đầu ca quy định. Công ty áp dụng ân hạn 5 phút (Grace Period ≤ 5m không tính vi phạm). Các ca muộn > 5 phút được đối chiếu với đơn giải trình hợp lệ.',
+    formula: '(Số lượt Check-in muộn > 5 phút / Tổng số ca làm việc quy chuẩn) × 100%',
+    benchmark: 'Mục tiêu: ≤ 5.0% (Kiểm soát kỷ luật vào ca chặt chẽ)',
+    color: '#EF9F27'
+  },
+  'avg_working_hours': {
+    title: 'Average working hour',
+    vnTitle: 'Thời lượng làm việc thực tế trung bình',
+    pillar: 'Pillar 3: Capacity Adherence & Working Time',
+    meaning: 'Thời lượng làm việc thực tế bình quân mỗi ngày của nhân sự trong các ngày có phát sinh làm việc (FullWorkDay hoặc HalfWorkDay). Loại trừ ngày nghỉ phép hoặc vắng cả ngày để phản ánh đúng cường độ làm việc thực tế.',
+    formula: 'Tổng số giờ làm việc thực tế / Tổng số ca có làm việc',
+    benchmark: 'Chuẩn quy định: 8.0 giờ/ngày. Khoảng tối ưu: 8.0h – 8.5h',
+    color: '#185FA5'
+  },
+  'extensive_late_count': {
+    title: 'Extensive late working (>9.5h)',
+    vnTitle: 'Số ca làm việc kéo dài quá mức',
+    pillar: 'Pillar 2 & 5: Departure Regularity & Workload Intensity',
+    meaning: 'Tổng số lượt ca làm việc có thời gian thực tế vượt quá 9.5 giờ/ngày (tức làm thêm > 1.5 giờ so với chuẩn 8 tiếng). Là chỉ báo sớm về hiện tượng nhân sự thường xuyên phải ở lại trễ để giải quyết khối lượng công việc tồn đọng.',
+    formula: 'Đếm số lượt ca có [Số giờ thực tế > 9.5h] trong các ngày làm việc',
+    benchmark: 'Càng thấp càng tốt. Nếu ≥ 3 ngày liên tiếp không có đơn OT sẽ kích hoạt cờ Burnout Risk',
+    color: '#D14520'
+  },
+  'adherence_rate': {
+    title: 'Adherence rate (actual/standard hrs)',
+    vnTitle: 'Tỷ lệ tuân thủ thời lượng làm việc',
+    pillar: 'Pillar 3: Capacity Adherence (Năng lực đáp ứng)',
+    meaning: 'Tỷ lệ phần trăm so sánh giữa tổng số giờ làm việc thực tế hoàn thành so với tổng số giờ tiêu chuẩn theo hợp đồng của toàn bộ nhân sự trong tuần. Phản ánh mức độ hoàn thành cam kết năng lực sản xuất cho khách hàng.',
+    formula: '(Tổng giờ làm việc thực tế / Tổng giờ làm việc tiêu chuẩn) × 100%',
+    benchmark: 'Ngưỡng chuẩn cân bằng: 98% – 102% (< 98%: thiếu hụt; > 105%: nguy cơ quá tải)',
+    color: '#3B6D11'
+  },
+  'overwork_employees': {
+    title: 'Overwork employees (>1.5h/day vs standard)',
+    vnTitle: 'Nhân sự làm quá giờ không có đơn OT',
+    pillar: 'Pillar 2 & 5: Check-out Regularity & Burnout Risk',
+    meaning: 'Số lượng nhân viên có mức chênh lệch giờ làm việc thực tế bình quân cao hơn tiêu chuẩn > 1.5h/ngày (trung bình làm > 9.5h/ngày), nhưng hoàn toàn KHÔNG nộp đơn xin làm thêm giờ (OT) được phê duyệt.',
+    formula: 'Count(Nhân sự có Avg(Giờ thực tế - Tiêu chuẩn) > 1.5h và KHÔNG có đơn OT hợp lệ)',
+    benchmark: 'Mục tiêu: 0 nhân sự (Bảo đảm quyền lợi OT và ngăn ngừa kiệt sức)',
+    color: '#854F0B'
+  },
+  'late_ci_unexplained': {
+    title: 'Late CI unexplained',
+    vnTitle: 'Số lượt đi muộn chưa giải trình',
+    pillar: 'Pillar 1: Punctuality',
+    meaning: 'Số lượt vào ca muộn > 5 phút nhưng không có đơn xin đi muộn/về sớm hợp lệ được phê duyệt trên MISA.',
+    formula: 'Tổng lượt đi muộn > 5 phút − Số lượt có đơn đi muộn được duyệt',
+    benchmark: 'Mục tiêu: 0 lượt (Mọi phát sinh phải có đơn giải trình)',
+    color: '#993C1D'
+  },
+  'early_ci_signal': {
+    title: 'Early check-in signal',
+    vnTitle: 'Tín hiệu chấm công đến sớm',
+    pillar: 'Pillar 1: Punctuality',
+    meaning: 'Số lượt chấm công trước giờ bắt đầu ca > 5 phút (ghi nhận tinh thần chủ động chuẩn bị ca làm việc).',
+    formula: 'Đếm số lượt Check-in sớm hơn giờ vào ca > 5 phút',
+    benchmark: 'Theo dõi để đánh giá tính chủ động và bố trí ca phù hợp',
+    color: '#0F6E56'
+  },
+  'early_checkout_rate': {
+    title: 'Early check-out rate (>5min)',
+    vnTitle: 'Tỷ lệ về sớm trước ca',
+    pillar: 'Pillar 2: Departure Regularity',
+    meaning: 'Tỷ lệ các lượt kết thúc ca làm việc và chấm công ra về sớm hơn 5 phút so với giờ tan ca quy định.',
+    formula: '(Số lượt Check-out sớm > 5 phút / Tổng số ca làm việc quy chuẩn) × 100%',
+    benchmark: 'Mục tiêu: ≤ 2.0% (Đảm bảo đủ thời lượng phục vụ dự án)',
+    color: '#D14520'
+  },
+  'staying_late': {
+    title: 'Staying-late >90min',
+    vnTitle: 'Số lượt ở lại trễ > 90 phút',
+    pillar: 'Pillar 2: Departure Regularity',
+    meaning: 'Tổng số lượt nhân viên rời văn phòng trễ hơn 90 phút sau khi ca làm việc đã kết thúc.',
+    formula: 'Đếm số lượt Check-out muộn hơn giờ kết thúc ca > 90 phút',
+    benchmark: 'Cần kiểm tra có đơn làm thêm giờ (OT) hay làm bù (make-up)',
+    color: '#A32D2D'
+  },
+  'leave_days': {
+    title: 'Leave days',
+    vnTitle: 'Tổng số ngày nghỉ phép trong tuần',
+    pillar: 'Pillar 4: Operational Stability',
+    meaning: 'Tổng số ngày nghỉ phép được phân bổ trong các ngày làm việc (Mon–Fri) của tuần được chọn.',
+    formula: 'Tổng số ngày nghỉ rơi vào tuần làm việc của các đơn đã duyệt',
+    benchmark: 'Giám sát để đảm bảo tỷ lệ sẵn sàng nhân lực cho khách hàng',
+    color: '#534AB7'
+  },
+  'leave_headcount': {
+    title: 'People on leave',
+    vnTitle: 'Số lượng nhân sự nghỉ phép',
+    pillar: 'Pillar 4: Operational Stability',
+    meaning: 'Số lượng nhân sự duy nhất (distinct) có ít nhất 0.5 ngày nghỉ phép trong tuần làm việc.',
+    formula: 'Đếm số Employee_ID riêng biệt có phát sinh nghỉ phép trong tuần',
+    benchmark: 'Đánh giá mức độ phân tán nghỉ phép giữa các nhóm nhân sự',
+    color: '#3C3489'
+  },
+  'leave_approval': {
+    title: 'Leave Approval rate',
+    vnTitle: 'Tỷ lệ duyệt đơn nghỉ phép',
+    pillar: 'Pillar 4: Operational Stability',
+    meaning: 'Tỷ lệ phần trăm giữa số đơn nghỉ phép đã được cấp quản lý phê duyệt so với tổng số đơn được tạo.',
+    formula: '(Số đơn nghỉ phép đã duyệt / Tổng số đơn nộp) × 100%',
+    benchmark: 'Mục tiêu: 100% các đơn nghỉ phép phải được xử lý dứt điểm',
+    color: '#3B6D11'
+  },
+  'leave_planned': {
+    title: 'Planned leave (>30d notice)',
+    vnTitle: 'Nghỉ phép có kế hoạch (Báo trước > 30 ngày)',
+    pillar: 'Pillar 4: Leave Taxonomy',
+    meaning: 'Số ngày nghỉ phép được nhân viên gửi đơn trước ngày bắt đầu nghỉ từ 30 ngày trở lên, cho phép dự án chủ động sắp xếp nhân lực thay thế.',
+    formula: 'Tổng ngày nghỉ có ngày gửi đơn cách ngày nghỉ ≥ 30 ngày',
+    benchmark: 'Khuyến khích nhân viên chủ động lập kế hoạch nghỉ dài hạn',
+    color: '#3B6D11'
+  },
+  'leave_unplanned': {
+    title: 'Unplanned leave (2–30d notice)',
+    vnTitle: 'Nghỉ phép phát sinh (Báo trước 2–30 ngày)',
+    pillar: 'Pillar 4: Leave Taxonomy',
+    meaning: 'Số ngày nghỉ phép phát sinh trong ngắn hạn, báo trước từ 2 đến 30 ngày trước khi nghỉ.',
+    formula: 'Tổng ngày nghỉ có ngày gửi đơn cách ngày nghỉ từ 2 đến 29 ngày',
+    benchmark: 'Cần phân bổ tải nội bộ đội ngũ để không ảnh hưởng tiến độ',
+    color: '#854F0B'
+  },
+  'leave_urgent': {
+    title: 'Urgent leave (≤2d notice)',
+    vnTitle: 'Nghỉ phép đột xuất / gấp (Báo trước ≤ 2 ngày)',
+    pillar: 'Pillar 4: Leave Taxonomy',
+    meaning: 'Số ngày nghỉ phép gửi đơn sát ngày (trước ≤ 2 ngày hoặc trong ngày nghỉ), tiềm ẩn rủi ro gián đoạn công việc của khách hàng.',
+    formula: 'Tổng ngày nghỉ có ngày gửi đơn cách ngày nghỉ ≤ 2 ngày',
+    benchmark: 'Càng ít càng tốt. Cần theo dõi nguyên nhân ốm đau hay đột xuất',
+    color: '#A32D2D'
+  },
+  'ot_hours': {
+    title: 'OT hours (total)',
+    vnTitle: 'Tổng số giờ làm thêm (OT)',
+    pillar: 'Pillar 5: Workload Intensity',
+    meaning: 'Tổng số giờ làm thêm đã được phê duyệt chính thức trong tuần (gồm cả ngày thường và cuối tuần).',
+    formula: 'Tổng OT_Hours của các đơn đăng ký làm thêm có Status = Approved',
+    benchmark: 'Theo dõi để kiểm soát ngân sách quỹ giờ và sức khỏe nhân sự',
+    color: '#D85A30'
+  },
+  'ot_weekend': {
+    title: 'Weekend OT hours',
+    vnTitle: 'Số giờ OT vào cuối tuần',
+    pillar: 'Pillar 5: Workload Intensity',
+    meaning: 'Số giờ làm thêm phát sinh vào Thứ Bảy hoặc Chủ Nhật đã được phê duyệt.',
+    formula: 'Tổng OT_Hours phát sinh trong 2 ngày nghỉ cuối tuần',
+    benchmark: 'Đánh giá mức độ quá tải cần làm bù hay kế hoạch trực nhật',
+    color: '#A32D2D'
+  },
+  'ot_weekday': {
+    title: 'Weekday OT hours',
+    vnTitle: 'Số giờ OT ngày thường (sau ca)',
+    pillar: 'Pillar 5: Workload Intensity',
+    meaning: 'Số giờ làm thêm phát sinh sau khi kết thúc ca làm việc các ngày trong tuần (Mon–Fri).',
+    formula: 'Tổng OT_Hours toàn tuần − Weekend OT hours',
+    benchmark: 'Đo lường mức độ tràn tải (spill-over) sau giờ làm việc',
+    color: '#D85A30'
+  },
+  'wfh_days': {
+    title: 'WFH days',
+    vnTitle: 'Số ngày làm việc từ xa (WFH)',
+    pillar: 'Pillar 3: Working Time Capacity',
+    meaning: 'Tổng số ngày làm việc tại nhà (Work From Home) được phê duyệt trong tuần.',
+    formula: 'Tổng số ngày trong đơn đăng ký WFH đã được phê duyệt',
+    benchmark: 'Đánh giá tính linh hoạt và tuân thủ quy chế làm việc từ xa',
+    color: '#185FA5'
+  },
+  'lc_ec_events': {
+    title: 'Late CI / Early CO',
+    vnTitle: 'Số sự vụ Đi muộn / Về sớm',
+    pillar: 'Pillar 1 & 2: Start/End of Shift Discipline',
+    meaning: 'Tổng số đơn giải trình đi muộn hoặc xin về sớm được tạo trong tuần.',
+    formula: 'Đếm số đơn trong mô-đun Đăng ký đi muộn, về sớm',
+    benchmark: 'Theo dõi để quản lý tỷ lệ giải trình hợp lệ',
+    color: '#993C1D'
+  },
+  'business_trips': {
+    title: 'Business trips',
+    vnTitle: 'Số chuyến công tác',
+    pillar: 'Pillar 4: Operational Stability',
+    meaning: 'Tổng số lượt nhân sự đi công tác bên ngoài văn phòng được phê duyệt.',
+    formula: 'Đếm số đơn trong mô-đun Đăng ký công tác',
+    benchmark: 'Ghi nhận lịch trình di chuyển phục vụ công việc',
+    color: '#0F6E56'
+  },
+  'shift_changes': {
+    title: 'Shift changes',
+    vnTitle: 'Số lượt đổi ca làm việc',
+    pillar: 'Pillar 4: Operational Stability',
+    meaning: 'Tổng số yêu cầu đổi ca làm việc giữa các nhân sự được nộp và xử lý trong tuần.',
+    formula: 'Đếm số đơn trong mô-đun Đăng ký đổi ca',
+    benchmark: 'Đánh giá mức độ biến động lịch làm việc ca',
+    color: '#5F5E5A'
+  }
+};
+
+function resolveKpiKey(label) {
+  if (!label) return null;
+  const l = String(label).toLowerCase();
+  if (l.includes('attendance quality')) return 'attendance_quality';
+  if (l.includes('late check-in rate') || l.includes('late ci rate')) return 'late_checkin_rate';
+  if (l.includes('average working hour') || l.includes('avg working hour')) return 'avg_working_hours';
+  if (l.includes('extensive late working')) return 'extensive_late_count';
+  if (l.includes('adherence rate')) return 'adherence_rate';
+  if (l.includes('overwork employees')) return 'overwork_employees';
+  if (l.includes('late ci unexplained')) return 'late_ci_unexplained';
+  if (l.includes('early check-in signal')) return 'early_ci_signal';
+  if (l.includes('early check-out rate')) return 'early_checkout_rate';
+  if (l.includes('staying-late')) return 'staying_late';
+  if (l.includes('leave days')) return 'leave_days';
+  if (l.includes('people on leave')) return 'leave_headcount';
+  if (l.includes('approval rate')) return 'leave_approval';
+  if (l.includes('planned leave')) return 'leave_planned';
+  if (l.includes('unplanned leave')) return 'leave_unplanned';
+  if (l.includes('urgent leave')) return 'leave_urgent';
+  if (l.includes('ot hours (total)') || l === 'ot hours') return 'ot_hours';
+  if (l.includes('weekend ot')) return 'ot_weekend';
+  if (l.includes('weekday ot')) return 'ot_weekday';
+  if (l.includes('wfh days')) return 'wfh_days';
+  if (l.includes('late ci / early co')) return 'lc_ec_events';
+  if (l.includes('business trip')) return 'business_trips';
+  if (l.includes('shift change')) return 'shift_changes';
+  return null;
+}
+
+function initKpiTooltip() {
+  if (window._kpiTooltipInitialized) return;
+  window._kpiTooltipInitialized = true;
+
+  let tip = document.getElementById('kpi-floating-tooltip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'kpi-floating-tooltip';
+    document.body.appendChild(tip);
+  }
+
+  let activeBtn = null;
+  let pinnedBtn = null;
+  let hideTimer = null;
+
+  function showTooltip(btn, pin = false) {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    const key = btn.getAttribute('data-kpi');
+    const info = KPI_METRICS_INFO[key];
+    if (!info) return;
+
+    if (activeBtn && activeBtn !== btn) {
+      activeBtn.classList.remove('active');
+    }
+    activeBtn = btn;
+    btn.classList.add('active');
+    if (pin) pinnedBtn = btn;
+
+    tip.innerHTML = `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.14);padding-bottom:7px;">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:#F8FAFC;display:flex;align-items:center;gap:6px;">
+            <span style="color:${info.color||'#60A5FA'};font-size:14px;line-height:1;">●</span>
+            ${escapeHtml(info.title)}
+          </div>
+          <div style="font-size:11.5px;color:#94A3B8;margin-top:2px;font-weight:500;">${escapeHtml(info.vnTitle)}</div>
+        </div>
+        <span style="font-size:10px;font-weight:600;background:rgba(255,255,255,0.12);padding:2px 7px;border-radius:10px;color:#CBD5E1;white-space:nowrap;letter-spacing:0.2px;">${escapeHtml(info.pillar.split(':')[0])}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <div>
+          <div style="font-size:10.5px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">💡 Ý nghĩa chỉ số</div>
+          <div style="color:#E2E8F0;font-size:11.5px;line-height:1.45;">${escapeHtml(info.meaning)}</div>
+        </div>
+        <div>
+          <div style="font-size:10.5px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">📐 Cách đo lường / Công thức</div>
+          <div style="color:#F1F5F9;background:rgba(0,0,0,0.35);padding:5px 8px;border-radius:6px;font-family:Consolas,Monaco,monospace;font-size:11px;border-left:3px solid ${info.color||'#38BDF8'};line-height:1.4;">${escapeHtml(info.formula)}</div>
+        </div>
+        <div>
+          <div style="font-size:10.5px;font-weight:700;color:#93C5FD;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">🎯 Tiêu chuẩn / Ngưỡng đánh giá</div>
+          <div style="color:#4ADE80;font-size:11.5px;font-weight:500;">${escapeHtml(info.benchmark)}</div>
+        </div>
+      </div>
+    `;
+
+    tip.style.display = 'block';
+
+    const rect = btn.getBoundingClientRect();
+    const tipW = Math.min(340, window.innerWidth - 24);
+    tip.style.width = tipW + 'px';
+    const tipH = tip.offsetHeight || 220;
+
+    let left = rect.left + (rect.width / 2) - (tipW / 2);
+    if (left < 12) left = 12;
+    if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
+
+    let top = rect.top - tipH - 8;
+    if (top < 10) {
+      top = rect.bottom + 8;
+    }
+
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+
+    requestAnimationFrame(() => {
+      tip.classList.add('show');
+    });
+  }
+
+  function hideTooltip(force = false) {
+    if (!force && pinnedBtn) return;
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      if (activeBtn) {
+        activeBtn.classList.remove('active');
+        activeBtn = null;
+      }
+      pinnedBtn = null;
+      tip.classList.remove('show');
+      setTimeout(() => {
+        if (!activeBtn) tip.style.display = 'none';
+      }, 150);
+    }, 100);
+  }
+
+  tip.addEventListener('mouseenter', () => {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  });
+  tip.addEventListener('mouseleave', () => {
+    hideTooltip();
+  });
+
+  document.addEventListener('mouseover', function(e) {
+    const btn = e.target.closest('.kpi-info-btn');
+    if (btn) {
+      showTooltip(btn, false);
+    }
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    const btn = e.target.closest('.kpi-info-btn');
+    if (btn && !pinnedBtn) {
+      hideTooltip();
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.kpi-info-btn');
+    if (btn) {
+      e.stopPropagation();
+      if (pinnedBtn === btn && tip.classList.contains('show')) {
+        hideTooltip(true);
+      } else {
+        showTooltip(btn, true);
+      }
+      return;
+    }
+    if (activeBtn || pinnedBtn) {
+      hideTooltip(true);
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && (activeBtn || pinnedBtn)) {
+      hideTooltip(true);
+    }
+  });
+}
+
+function kpiCard(label, value, note, sparkValues, sparkColor, kpiKey){
   const d = document.createElement('div');
   d.className = 'card';
   const spark = sparkValues ? sparklineSvg(sparkValues, sparkColor||'#1F3864') : '';
-  d.innerHTML = `<p class="kpi-label">${label}</p><p class="kpi-value">${value}</p>${note?`<p class="kpi-note ${note.cls}">${note.text}</p>`:''}${spark}`;
+  const resolvedKey = kpiKey || resolveKpiKey(label);
+  const infoBtn = (resolvedKey && KPI_METRICS_INFO[resolvedKey]) ? `
+    <span class="kpi-info-btn" data-kpi="${resolvedKey}" title="Xem giải thích &amp; ý nghĩa chỉ số" aria-label="Xem giải thích chỉ số ${escapeHtml(label)}" role="button" tabindex="0">
+      <svg class="kpi-info-icon" viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
+        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+      </svg>
+    </span>` : '';
+  d.innerHTML = `
+    <div class="kpi-card-header">
+      <p class="kpi-label">${label}</p>
+      ${infoBtn}
+    </div>
+    <p class="kpi-value">${value}</p>
+    ${note?`<p class="kpi-note ${note.cls}">${note.text}</p>`:''}
+    ${spark}
+  `;
   return d;
 }
 function moduleCard(icon, label, value, note, sparkValues, sparkColor){
@@ -812,11 +1260,6 @@ function heatColor(pct){
 }
 function heatTextColor(pct){
   return pct >= 30 ? '#5A1F1F' : '#3d3d3a';
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ---- Customer Employee Tooltip Helpers ----
@@ -1089,12 +1532,12 @@ function renderAll(){
 
   // === Overview ===
   const ovK = document.getElementById('ov-kpis'); ovK.innerHTML = '';
-  ovK.appendChild(kpiCard('Attendance quality', fmtNum(last(s.attendance_quality))+'%', trendNote(last(s.attendance_quality), prev(s.attendance_quality), 'up'), s.attendance_quality, '#0F6E56'));
-  ovK.appendChild(kpiCard(`Late check-in rate (>${D.late_ci_threshold||5}min)`, fmtNum(last(s.late_checkin_rate))+'%', trendNote(last(s.late_checkin_rate), prev(s.late_checkin_rate), 'down'), s.late_checkin_rate, '#EF9F27'));
-  ovK.appendChild(kpiCard('Average working hour', fmtNum(last(s.avg_working_hours),2)+' h', trendNote(last(s.avg_working_hours), prev(s.avg_working_hours), 'up'), s.avg_working_hours, '#185FA5'));
-  ovK.appendChild(kpiCard(`Extensive late working (>${D.extensive_hours_threshold||9.5}h)`, last(s.extensive_late_count), trendNote(last(s.extensive_late_count), prev(s.extensive_late_count), 'down'), s.extensive_late_count, '#D14520'));
-  ovK.appendChild(kpiCard('Adherence rate (actual/standard hrs)', fmtNum(last(s.adherence_rate))+'%', adherenceNote(last(s.adherence_rate)), s.adherence_rate, '#3B6D11'));
-  ovK.appendChild(kpiCard(`Overwork employees (>${D.overwork_threshold||1.5}h/day vs standard)`, last(s.overwork_employees)+' emp.', trendNote(last(s.overwork_employees), prev(s.overwork_employees), 'down'), s.overwork_employees, '#854F0B'));
+  ovK.appendChild(kpiCard('Attendance quality', fmtNum(last(s.attendance_quality))+'%', trendNote(last(s.attendance_quality), prev(s.attendance_quality), 'up'), s.attendance_quality, '#0F6E56', 'attendance_quality'));
+  ovK.appendChild(kpiCard(`Late check-in rate (>${D.late_ci_threshold||5}min)`, fmtNum(last(s.late_checkin_rate))+'%', trendNote(last(s.late_checkin_rate), prev(s.late_checkin_rate), 'down'), s.late_checkin_rate, '#EF9F27', 'late_checkin_rate'));
+  ovK.appendChild(kpiCard('Average working hour', fmtNum(last(s.avg_working_hours),2)+' h', trendNote(last(s.avg_working_hours), prev(s.avg_working_hours), 'up'), s.avg_working_hours, '#185FA5', 'avg_working_hours'));
+  ovK.appendChild(kpiCard(`Extensive late working (>${D.extensive_hours_threshold||9.5}h)`, last(s.extensive_late_count), trendNote(last(s.extensive_late_count), prev(s.extensive_late_count), 'down'), s.extensive_late_count, '#D14520', 'extensive_late_count'));
+  ovK.appendChild(kpiCard('Adherence rate (actual/standard hrs)', fmtNum(last(s.adherence_rate))+'%', adherenceNote(last(s.adherence_rate)), s.adherence_rate, '#3B6D11', 'adherence_rate'));
+  ovK.appendChild(kpiCard(`Overwork employees (>${D.overwork_threshold||1.5}h/day vs standard)`, last(s.overwork_employees)+' emp.', trendNote(last(s.overwork_employees), prev(s.overwork_employees), 'down'), s.overwork_employees, '#854F0B', 'overwork_employees'));
 
   const ovM = document.getElementById('ov-modules'); ovM.innerHTML = '';
   ovM.appendChild(moduleCard('','Leave', fmtNum(last(s.leave_days))+' days', fmtNum(last(s.leave_approval))+'% approved \u00b7 '+last(s.leave_headcount)+' people', s.leave_days, '#534AB7'));
