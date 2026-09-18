@@ -601,18 +601,18 @@ def build_fact_attendance_daily():
     print(f"  OK Parsed {len(files)} raw timesheet files -> FACT_Attendance_Daily ({len(fact_att):,} daily records)")
     return fact_att
 
-def load_all_raw_data():
+def load_all_raw_data(source="api"):
     """
-    Loads all data 100% directly from raw files in data/Attendance/ and entities/:
-    - Master DIM_Employee: from entities/notification_routing_map.md and entities/employees.md
-    - 6 Live Request DataFrames: from raw files in data/Attendance/
-    - FACT_Attendance_Daily: parsed directly from raw timesheets in data/Attendance/Timesheet/
-    Completely eliminates any dependency on static HR_Fact_Attendance.xlsx!
+    Loads all data 100% directly:
+    - If source == "api":
+        Streams directly from MISA AMIS REST API via MisaAmisClient into RAM (2-3s).
+        Gracefully falls back to local Excel files if API is unreachable.
+    - If source == "excel":
+        Loads from raw Excel files in data/Attendance/ and data/Attendance/Timesheet/
     """
     print("\n[1] Loading Master Entities from entities/...")
     emp_df = load_master_employees_from_entities()
 
-    print("\n[2] Loading Live Requests from data/Attendance/...")
     raw = {
         "DIM_Employee": emp_df,
         "Req_Leave": pd.DataFrame(),
@@ -621,10 +621,38 @@ def load_all_raw_data():
         "Req_LCin&ECout": pd.DataFrame(),
         "Req_BusinessTrip": pd.DataFrame(),
         "Req_ShiftChange": pd.DataFrame(),
+        "FACT_Attendance_Daily": pd.DataFrame(),
     }
+
+    if source == "api":
+        print("\n[2] Ingesting Live Data Directly from MISA AMIS REST API (In-Memory Streaming)...")
+        try:
+            misa_setup_dir = WORKSPACE_DIR / "attendance reference" / "MisaSetup"
+            if str(misa_setup_dir) not in sys.path:
+                sys.path.insert(0, str(misa_setup_dir))
+            from misa_client import MisaAmisClient
+
+            client = MisaAmisClient()
+            api_dfs = client.get_attendance_dataframes()
+
+            for k in ["Req_Leave", "Req_OT", "Req_WFh", "Req_LCin&ECout", "Req_BusinessTrip", "Req_ShiftChange", "FACT_Attendance_Daily"]:
+                if k in api_dfs and not api_dfs[k].empty:
+                    raw[k] = api_dfs[k]
+                    print(f"  OK Live {k} ingested via MISA API ({len(api_dfs[k]):,} rows)")
+
+            # If timesheet and requests were loaded successfully, return immediately
+            if not raw["FACT_Attendance_Daily"].empty:
+                print("  ✅ All attendance data streamed 100% directly from MISA REST API into RAM!")
+                return raw
+        except Exception as e:
+            print(f"  [WARN] MISA API direct streaming failed: {e}")
+            print("  [INFO] Falling back to local Excel files in data/Attendance/...")
+
+    # Fallback / Excel mode
+    print("\n[2] Loading Live Requests from data/Attendance/ (Excel Fallback)...")
     load_live_requests(raw)
 
-    print("\n[3] Parsing Raw Timesheets from data/Attendance/Timesheet/...")
+    print("\n[3] Parsing Raw Timesheets from data/Attendance/Timesheet/ (Excel Fallback)...")
     raw["FACT_Attendance_Daily"] = build_fact_attendance_daily()
 
     return raw
@@ -635,6 +663,14 @@ def load_all_raw_data():
 
 def preprocess(raw):
     """Cast types, filter excluded employees, add derived columns."""
+
+    # Normalize all datetime columns across all raw DataFrames to tz-naive
+    for k in ["FACT_Attendance_Daily", "Req_Leave", "Req_OT", "Req_WFh", "Req_LCin&ECout", "Req_BusinessTrip", "Req_ShiftChange"]:
+        if k in raw and isinstance(raw[k], pd.DataFrame) and not raw[k].empty:
+            for c in raw[k].columns:
+                if pd.api.types.is_datetime64_any_dtype(raw[k][c]):
+                    if hasattr(raw[k][c].dt, "tz") and raw[k][c].dt.tz is not None:
+                        raw[k][c] = raw[k][c].dt.tz_localize(None)
 
     # -- FACT_Attendance_Daily ------------------------------
     att = raw["FACT_Attendance_Daily"].copy()
@@ -1841,12 +1877,12 @@ def deploy_to_github(repo_dir=None):
 # ENTRY POINT
 # ═══════════════════════════════════════════════════════════════
 
-def main(deploy=True):
+def main(deploy=True, source="api"):
     print("=" * 62)
-    print("  Attendance Dashboard — Data Regenerator (100% Raw Data & Entities)")
+    print("  Attendance Dashboard — Data Regenerator (MISA REST API & Entities)")
     print("=" * 62)
 
-    raw       = load_all_raw_data()
+    raw       = load_all_raw_data(source=source)
     proc      = preprocess(raw)
     week_rngs = detect_weeks(proc["att"], n=TRAILING_WEEKS)
 
@@ -1870,6 +1906,7 @@ def main(deploy=True):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate Workforce Attendance Dashboard Data")
+    parser.add_argument("--source", choices=["api", "excel"], default="api", help="Data source: 'api' (direct MISA REST API) or 'excel' (local files)")
     parser.add_argument("--no-deploy", action="store_true", help="Skip automatic deployment to GitHub Pages")
     args = parser.parse_args()
-    main(deploy=not args.no_deploy)
+    main(deploy=not args.no_deploy, source=args.source)
