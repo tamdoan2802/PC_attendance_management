@@ -118,16 +118,19 @@ python scripts/process_attendance.py draft 2026-08-24:2026-08-30
 - **Action:** Saved to Drafts and displayed on screen for human review.
 
 ### Step 5: Launch Workforce Attendance Dashboard (`dashboard`)
-Regenerates the complete attendance analytics dataset directly from raw timesheet files in `data/Attendance/Timesheet/`, raw request modules in `data/Attendance/`, and Master Data `entities/` (saved to `references/data.js` and `references/data.json`) and opens the interactive **Workforce Attendance Dashboard** in the default web browser:
+Regenerates the complete attendance analytics dataset directly from raw timesheet files in `data/Attendance/Timesheet/`, raw request modules in `data/Attendance/`, and Master Data `entities/` (saved to `references/data.js` and `references/data.json`), automatically commits & pushes changes to **GitHub Pages**, and opens the interactive **Workforce Attendance Dashboard** in the default web browser:
 ```bash
-# Refresh data and open dashboard:
+# Refresh data, auto-deploy to GitHub Pages, and open dashboard:
 python scripts/process_attendance.py dashboard
 
-# Open dashboard directly without regenerating data:
-python scripts/process_attendance.py dashboard --no-refresh
+# Open dashboard directly without regenerating data or deploying:
+python scripts/process_attendance.py dashboard --no-refresh --no-deploy
+
+# Deploy current dashboard directly to GitHub Pages:
+python scripts/process_attendance.py deploy
 ```
-- **Dashboard UI:** 100% identical to the corporate template at `https://tamdoan2802.github.io/PC_attendance_management/reports/index.html`.
-- **Tabs included:** Overview, Attendance Quality, Leave, OT & WFH, Requests Operations, Attendance Dashboard.
+- **Live Production URL:** [https://tamdoan2802.github.io/PC_attendance_management/](https://tamdoan2802.github.io/PC_attendance_management/)
+- **Dashboard UI:** Corporate template with 6 tabs (Overview, Attendance Quality, Leave, OT & WFH, Requests Operations, Attendance Dashboard).
 
 ---
 
@@ -146,4 +149,5 @@ python scripts/process_attendance.py dashboard --no-refresh
 | **Governance Alerts** | `python scripts/process_attendance.py anomalies [period]` | Displays prioritized P&C Action Triggers only |
 | **Employee Drill-Down** | `python scripts/process_attendance.py employee <Name/ID> [period]` | Detailed daily punch log and exceptions for single employee |
 | **Create Email Draft** | `python scripts/process_attendance.py draft [period] [--to ...]` | Generates Outlook Draft for P&C Manager Chau Ha |
-| **Workforce Dashboard** | `python scripts/process_attendance.py dashboard [--no-refresh]` | Refreshes analytics data and opens interactive Dashboard in browser |
+| **Workforce Dashboard** | `python scripts/process_attendance.py dashboard [--no-refresh]` | Refreshes analytics data, auto-deploys to GitHub Pages, and opens browser |
+| **Deploy to GitHub** | `python scripts/process_attendance.py deploy` | Deploys current dashboard files directly to GitHub Pages |
