@@ -1693,10 +1693,87 @@ def export_json(dash_data):
     print(f"   OK data.js written")
 
 # ═══════════════════════════════════════════════════════════════
+# AUTO GITHUB PAGES DEPLOYMENT
+# ═══════════════════════════════════════════════════════════════
+
+def get_git_executable():
+    """Locates git command from PATH or bundled GitHub Desktop installation."""
+    import shutil
+    if shutil.which("git"):
+        return "git"
+    github_desktop_dir = Path(os.environ.get("LOCALAPPDATA", "")) / "GitHubDesktop"
+    if github_desktop_dir.exists():
+        app_dirs = list(github_desktop_dir.glob("app-*"))
+        if app_dirs:
+            latest_app = sorted(app_dirs)[-1]
+            git_path = latest_app / "resources" / "app" / "git" / "cmd" / "git.exe"
+            if git_path.exists():
+                return str(git_path)
+    return "git"
+
+def deploy_to_github(repo_dir=None):
+    """
+    Automatically commits and pushes updated dashboard files to GitHub Pages.
+    Repository: tamdoan2802/PC_attendance_management
+    """
+    import subprocess
+    if repo_dir is None:
+        repo_dir = THIS_DIR.parent
+
+    git_dir = repo_dir / ".git"
+    if not git_dir.exists():
+        print(f"\n[GIT] No .git directory found at {repo_dir}. Skipping auto-deploy.")
+        return False
+
+    git_cmd = get_git_executable()
+    print(f"\n[>>] Deploying updated dashboard to GitHub Pages...")
+    try:
+        # Stage dashboard artifacts and scripts
+        subprocess.run(
+            [git_cmd, "add", "-A"],
+            cwd=str(repo_dir),
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        commit_msg = f"Auto-deploy workforce dashboard at {timestamp}"
+        commit_res = subprocess.run(
+            [git_cmd, "commit", "-m", commit_msg],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True
+        )
+        if "nothing to commit" in commit_res.stdout or "nothing to commit" in commit_res.stderr:
+            print("   [INFO] GitHub Pages is already up to date with latest data.")
+            print("   🌐 Live URL: https://tamdoan2802.github.io/PC_attendance_management/")
+            return True
+
+        print("   [>>] Pushing to GitHub (origin/master)...")
+        subprocess.run(
+            [git_cmd, "push", "origin", "master"],
+            cwd=str(repo_dir),
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print("   ✅ Successfully deployed to GitHub Pages!")
+        print("   🌐 Live URL: https://tamdoan2802.github.io/PC_attendance_management/")
+        return True
+    except subprocess.CalledProcessError as e:
+        err_msg = e.stderr.strip() if e.stderr else str(e)
+        print(f"   [WARN] Git auto-deploy encountered an issue: {err_msg}")
+        return False
+    except Exception as e:
+        print(f"   [WARN] Could not deploy to GitHub: {e}")
+        return False
+
+# ═══════════════════════════════════════════════════════════════
 # ENTRY POINT
 # ═══════════════════════════════════════════════════════════════
 
-def main():
+def main(deploy=True):
     print("=" * 62)
     print("  Attendance Dashboard — Data Regenerator (100% Raw Data & Entities)")
     print("=" * 62)
@@ -1719,5 +1796,12 @@ def main():
     print(f"  [DONE]  Done! Data exported to {DATA_JSON_PATH.name}")
     print("=" * 62)
 
+    if deploy:
+        deploy_to_github()
+
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate Workforce Attendance Dashboard Data")
+    parser.add_argument("--no-deploy", action="store_true", help="Skip automatic deployment to GitHub Pages")
+    args = parser.parse_args()
+    main(deploy=not args.no_deploy)

@@ -99,10 +99,10 @@ def drilldown_employee(emp_identifier, period_kw='last_week'):
         print(f"  {r['date'].strftime('%a %d/%m')}: Shift {r['shift_code']} ({r['shift_start']}-{r['shift_end']}) | Punch: {ci_str} - {co_str} | Worked: {r['actual_hours']}h | {note_str}")
     print("")
 
-def launch_dashboard(refresh=True):
+def launch_dashboard(refresh=True, deploy=True):
     """
-    Refreshes dashboard dataset (data.js and data.json) and opens
-    the workforce attendance dashboard in default browser.
+    Refreshes dashboard dataset (data.js and data.json), automatically deploys
+    to GitHub Pages, and opens the workforce attendance dashboard in default browser.
     """
     from pathlib import Path
     import webbrowser
@@ -112,7 +112,10 @@ def launch_dashboard(refresh=True):
     if refresh:
         print("\n[+] Regenerating dashboard analytics dataset from raw timesheets & Master Data entities...")
         from .generate_dashboard_data import main as regen_dash
-        regen_dash()
+        regen_dash(deploy=deploy)
+    elif deploy:
+        from .generate_dashboard_data import deploy_to_github
+        deploy_to_github()
         
     if not reports_html.exists():
         print(f"Error: Dashboard HTML not found at {reports_html}")
@@ -120,7 +123,8 @@ def launch_dashboard(refresh=True):
         
     abs_html = os.path.abspath(reports_html)
     url = f"file:///{abs_html.replace(os.sep, '/')}"
-    print(f"\n🚀 Opening Workforce Attendance Dashboard:\n  {url}")
+    print(f"\n🚀 Opening Workforce Attendance Dashboard:\n  Local : {url}")
+    print(f"  Live  : https://tamdoan2802.github.io/PC_attendance_management/\n")
     try:
         webbrowser.open(url)
     except Exception as e:
@@ -153,6 +157,10 @@ def main():
     # 5. dashboard
     p_dash = subparsers.add_parser('dashboard', help='Regenerate dashboard data and launch Workforce Attendance Dashboard in browser')
     p_dash.add_argument('--no-refresh', action='store_true', help='Skip data regeneration and open dashboard directly')
+    p_dash.add_argument('--no-deploy', action='store_true', help='Skip automatic deploy to GitHub Pages')
+
+    # 6. deploy
+    p_dep = subparsers.add_parser('deploy', help='Deploy current dashboard directly to GitHub Pages')
     
     args = parser.parse_args()
     
@@ -165,7 +173,10 @@ def main():
     elif args.command == 'draft':
         create_attendance_email_draft(args.period, args.to, args.cc)
     elif args.command == 'dashboard':
-        launch_dashboard(refresh=not args.no_refresh)
+        launch_dashboard(refresh=not args.no_refresh, deploy=not args.no_deploy)
+    elif args.command == 'deploy':
+        from .generate_dashboard_data import deploy_to_github
+        deploy_to_github()
     else:
         # Default action: run weekly report
         generate_report('last_week', 'all')
