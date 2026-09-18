@@ -1269,13 +1269,13 @@ function renderAll(){
   renderGenericTable(document.getElementById('ot-table'),
     ['Employee','Date','Hours','Timing','Reason','Status'],
     otTable.map(r=>[r.name, r.date, fmtNum(r.hours), r.timing, r.reason || '\u2014', r.status]),
-    'No OT requests in the last 4 weeks for this scope.');
+    'No OT requests recorded for this week in this scope.');
 
   const wfhTable = (D.wfh_details[selectedWeekKey] && D.wfh_details[selectedWeekKey][key]) ? D.wfh_details[selectedWeekKey][key] : [];
   renderGenericTable(document.getElementById('wfh-table'),
     ['Employee','From','To','Reason','Status'],
     wfhTable.map(r=>[r.name, r.from, r.to, r.reason || '\u2014', r.status]),
-    'No WFH requests in the last 4 weeks for this scope.');
+    'No WFH requests recorded for this week in this scope.');
 
   renderFlagList(document.getElementById('otwfh-flags'), flags.filter(f=>f.type.toLowerCase().includes('ot') || f.type.toLowerCase().includes('overwork')));
 

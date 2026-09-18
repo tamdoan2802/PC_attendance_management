@@ -125,6 +125,18 @@ def parse_week_mon_fri(week_period_str):
     fri = datetime.strptime(parts[1].strip(), "%d/%m/%Y")
     return mon, fri
 
+def date_to_week_period(dt):
+    """Convert any timestamp/date to its Mon–Fri week period string (e.g. '07/09/2026 - 11/09/2026')."""
+    if pd.isna(dt):
+        return ""
+    try:
+        dt = pd.to_datetime(dt)
+        m = dt - pd.Timedelta(days=dt.weekday())
+        f = m + pd.Timedelta(days=4)
+        return f"{m.strftime('%d/%m/%Y')} - {f.strftime('%d/%m/%Y')}"
+    except Exception:
+        return ""
+
 def week_range_label(week_period_str):
     """'13/07/2026 - 17/07/2026' → 'Jul 13, 26'  (Monday of the week)."""
     try:
@@ -370,7 +382,8 @@ def load_live_requests(raw):
                     "OT_Timing": timing,
                     "Reason": str(r.get("Lý do làm thêm", "")).strip(),
                     "Status": status,
-                    "Status_Flag": status_flag
+                    "Status_Flag": status_flag,
+                    "Week Period": date_to_week_period(ot_from)
                 })
             if records:
                 raw["Req_OT"] = pd.DataFrame(records)
@@ -393,14 +406,18 @@ def load_live_requests(raw):
                 if pd.isna(t_to): t_to = t_from
                 status = str(r.get("Trạng thái", "")).strip()
                 status_flag = 1 if status == "Đã duyệt" else 0
+                wfh_days = pd.to_numeric(r.get("Số ngày làm việc từ xa"), errors="coerce")
+                wfh_days = float(wfh_days) if pd.notna(wfh_days) else 1.0
                 records.append({
                     "Employee_ID": eid,
                     "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
                     "WFH_From": t_from,
                     "WFH_To": t_to,
+                    "WFH_Days": wfh_days,
                     "Status": status,
                     "Status_Flag": status_flag,
-                    "Reason": str(r.get("Lý do làm việc từ xa", "")).strip()
+                    "Reason": str(r.get("Lý do làm việc từ xa", "")).strip(),
+                    "Week Period": date_to_week_period(t_from)
                 })
             if records:
                 raw["Req_WFh"] = pd.DataFrame(records)
@@ -433,7 +450,8 @@ def load_live_requests(raw):
                     "Reason_Detail": str(r.get("Lý do đi muộn, về sớm", "")).strip(),
                     "Reason_Group": str(r.get("Nhóm lý do", "")).strip(),
                     "Status": status,
-                    "Status_Flag": status_flag
+                    "Status_Flag": status_flag,
+                    "Week Period": date_to_week_period(t_from)
                 })
             if records:
                 raw["Req_LCin&ECout"] = pd.DataFrame(records)
@@ -465,7 +483,8 @@ def load_live_requests(raw):
                     "Destination": str(r.get("Địa điểm công tác", "")).strip(),
                     "Purpose": str(r.get("Mục đích công tác", "")).strip(),
                     "Status": status,
-                    "Status_Flag": status_flag
+                    "Status_Flag": status_flag,
+                    "Week Period": date_to_week_period(t_from)
                 })
             if records:
                 raw["Req_BusinessTrip"] = pd.DataFrame(records)
@@ -494,7 +513,8 @@ def load_live_requests(raw):
                     "Shift_Code_New": str(r.get("Ca đăng ký đổi", "")).strip(),
                     "Reason": str(r.get("Lý do đổi ca", "")).strip(),
                     "Status": status,
-                    "Status_Flag": status_flag
+                    "Status_Flag": status_flag,
+                    "Week Period": date_to_week_period(w_date)
                 })
             if records:
                 raw["Req_ShiftChange"] = pd.DataFrame(records)
@@ -659,15 +679,10 @@ def preprocess(raw):
             leave["Leave Days in Week"], errors="coerce"
         ).fillna(leave["Leave_Days"])
 
-        if "Week Period" in leave.columns:
+        if "Week Period" in leave.columns and not leave["Week Period"].astype(str).str.strip().replace("", pd.NA).isna().all():
             leave["Week Period"] = leave["Week Period"].astype(str).str.strip()
         else:
-            def to_wp(dt):
-                if pd.isna(dt): return ""
-                m = dt - pd.Timedelta(days=dt.weekday())
-                f = m + pd.Timedelta(days=4)
-                return f"{m.strftime('%d/%m/%Y')} - {f.strftime('%d/%m/%Y')}"
-            leave["Week Period"] = leave["Leave_From"].apply(to_wp)
+            leave["Week Period"] = leave["Leave_From"].apply(date_to_week_period)
         leave = leave[~leave["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_OT --------------------------------------------
@@ -682,8 +697,10 @@ def preprocess(raw):
             ot["_ot_date"] = ot["OT Date"]
         else:
             ot["_ot_date"] = ot["OT_From"].dt.normalize()
-        ot["Week Period"] = ot["Week Period"].astype(str).str.strip() \
-            if "Week Period" in ot.columns else ""
+        if "Week Period" in ot.columns and not ot["Week Period"].astype(str).str.strip().replace("", pd.NA).isna().all():
+            ot["Week Period"] = ot["Week Period"].astype(str).str.strip()
+        else:
+            ot["Week Period"] = ot["_ot_date"].apply(date_to_week_period)
         ot = ot[~ot["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_WFh -------------------------------------------
@@ -693,8 +710,10 @@ def preprocess(raw):
         wfh["WFH_From"]    = pd.to_datetime(wfh["WFH_From"], errors="coerce")
         wfh["WFH_To"]      = pd.to_datetime(wfh["WFH_To"],   errors="coerce")
         wfh["Status_Flag"] = pd.to_numeric(wfh["Status_Flag"], errors="coerce").fillna(0).astype(int)
-        wfh["Week Period"] = wfh["Week Period"].astype(str).str.strip() \
-            if "Week Period" in wfh.columns else ""
+        if "Week Period" in wfh.columns and not wfh["Week Period"].astype(str).str.strip().replace("", pd.NA).isna().all():
+            wfh["Week Period"] = wfh["Week Period"].astype(str).str.strip()
+        else:
+            wfh["Week Period"] = wfh["WFH_From"].apply(date_to_week_period)
         wfh = wfh[~wfh["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_LCin&ECout ------------------------------------
@@ -703,8 +722,10 @@ def preprocess(raw):
         lcec["Employee_ID"] = lcec["Employee_ID"].astype(str).str.strip()
         lcec["Apply_From"]  = pd.to_datetime(lcec["Apply_From"], errors="coerce")
         lcec["Status_Flag"] = pd.to_numeric(lcec["Status_Flag"], errors="coerce").fillna(0).astype(int)
-        lcec["Week Period"] = lcec["Week Period"].astype(str).str.strip() \
-            if "Week Period" in lcec.columns else ""
+        if "Week Period" in lcec.columns and not lcec["Week Period"].astype(str).str.strip().replace("", pd.NA).isna().all():
+            lcec["Week Period"] = lcec["Week Period"].astype(str).str.strip()
+        else:
+            lcec["Week Period"] = lcec["Apply_From"].apply(date_to_week_period)
         if "Minutes" in lcec.columns:
             lcec["Minutes"] = pd.to_numeric(lcec["Minutes"], errors="coerce").fillna(0)
         else:
@@ -723,6 +744,10 @@ def preprocess(raw):
         trip["Trip_To"]     = pd.to_datetime(trip["Trip_To"],   errors="coerce")
         trip["Trip_Days"]   = pd.to_numeric(trip["Trip_Days"],  errors="coerce").fillna(0)
         trip["Status_Flag"] = pd.to_numeric(trip["Status_Flag"], errors="coerce").fillna(0).astype(int)
+        if "Week Period" in trip.columns and not trip["Week Period"].astype(str).str.strip().replace("", pd.NA).isna().all():
+            trip["Week Period"] = trip["Week Period"].astype(str).str.strip()
+        else:
+            trip["Week Period"] = trip["Trip_From"].apply(date_to_week_period)
         trip = trip[~trip["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_ShiftChange -----------------------------------
@@ -731,8 +756,10 @@ def preprocess(raw):
         sc["Employee_ID"] = sc["Employee_ID"].astype(str).str.strip()
         sc["Work_Date"]   = pd.to_datetime(sc["Work_Date"], errors="coerce")
         sc["Status_Flag"] = pd.to_numeric(sc["Status_Flag"], errors="coerce").fillna(0).astype(int)
-        sc["Week Period"] = sc["Week Period"].astype(str).str.strip() \
-            if "Week Period" in sc.columns else ""
+        if "Week Period" in sc.columns and not sc["Week Period"].astype(str).str.strip().replace("", pd.NA).isna().all():
+            sc["Week Period"] = sc["Week Period"].astype(str).str.strip()
+        else:
+            sc["Week Period"] = sc["Work_Date"].apply(date_to_week_period)
         sc = sc[~sc["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Propagate Master Data across all tables --
@@ -840,17 +867,22 @@ def req_scope(df, emp_ids, team_scope, dept_col="Department"):
     return out
 
 def req_week(df, week_period_str, date_col):
-    """Slice a request DF to a specific week period string."""
+    """Slice a request DF to a specific week period string (covers Monday 00:00:00 to Sunday 23:59:59)."""
+    if df is None or df.empty:
+        return df.iloc[0:0] if df is not None else pd.DataFrame()
     if "Week Period" in df.columns:
         r = df[df["Week Period"] == week_period_str]
         if not r.empty:
             return r
-    # Fallback: filter by date range
+    # Fallback: filter by date range including entire weekend
     try:
         mon, fri = parse_week_mon_fri(week_period_str)
-        return df[(df[date_col] >= mon) & (df[date_col] <= fri)]
+        sun_end = fri + timedelta(days=2, hours=23, minutes=59, seconds=59)
+        if date_col in df.columns:
+            return df[(df[date_col] >= mon) & (df[date_col] <= sun_end)]
     except Exception:
-        return df.iloc[0:0]   # empty
+        pass
+    return df.iloc[0:0]   # empty
 
 def name_col(df, fallback_col="Employee_Name"):
     """Choose best available name column."""
@@ -1123,7 +1155,8 @@ def build_dash_data(proc, scopes, week_ranges):
                 o_wk  = req_week(ot, wp, "_ot_date")
                 o_sc  = req_scope(o_wk, emp_ids, t)
                 o_app = o_sc[o_sc["Status_Flag"] == 1]
-                wknd_hrs  = round(float(o_app.loc[o_app["OT_Timing"] == "Ngày nghỉ", "OT_Hours"].sum()), 1)
+                is_wknd = (o_app["OT_Timing"].astype(str).str.strip().str.lower() == "ngày nghỉ") | (pd.to_datetime(o_app["_ot_date"]).dt.weekday >= 5)
+                wknd_hrs  = round(float(o_app.loc[is_wknd, "OT_Hours"].sum()), 1)
                 total_hrs = round(float(o_app["OT_Hours"].sum()), 1)
                 emp_count = o_app["Employee_ID"].nunique() if "Employee_ID" in o_app.columns else 0
                 series["ot_hours"].append(total_hrs)
@@ -1137,7 +1170,13 @@ def build_dash_data(proc, scopes, week_ranges):
             if not wfh.empty:
                 w_wk = req_week(wfh, wp, "WFH_From")
                 w_sc = req_scope(w_wk, emp_ids, t)
-                series["wfh_days"].append(int((w_sc["Status_Flag"] == 1).sum()))
+                w_app = w_sc[w_sc["Status_Flag"] == 1]
+                if "WFH_Days" in w_app.columns:
+                    wfh_sum = round(float(w_app["WFH_Days"].sum()), 2)
+                    wfh_val = int(wfh_sum) if wfh_sum.is_integer() else wfh_sum
+                    series["wfh_days"].append(wfh_val)
+                else:
+                    series["wfh_days"].append(int(len(w_app)))
             else:
                 series["wfh_days"].append(0)
 
