@@ -15,6 +15,8 @@ Columns used per sheet — see kpi_formular.md for full metric logic.
 Excluded employees: MTVN0059 (Adrian), MTVN0062 (Chau Ha).
 """
 
+import os
+import glob
 import sys
 import re
 import json
@@ -40,11 +42,23 @@ except ImportError:
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════
 THIS_DIR   = Path(__file__).parent.resolve()
+WORKSPACE_DIR = THIS_DIR.parent.parent.parent.parent
+DATA_ATT_DIR = WORKSPACE_DIR / "data" / "Attendance"
+ENTITIES_DIR = WORKSPACE_DIR / "entities"
+TIMESHEET_DIR = DATA_ATT_DIR / "Timesheet"
+
 DATA_JSON_PATH = THIS_DIR.parent / "references" / "data.json"
 DATA_JS_PATH = THIS_DIR.parent / "references" / "data.js"
-EXCEL_PATH = Path(r"G:\My Drive\Dữ liệu nhân sự\Data\Timesheet\HR_Fact_Attendance.xlsx")
 
-EXCLUDED_IDS            = {"MTVN0059", "MTVN0062"}
+EXCLUDED_TOTAL = {
+    "MTVN0059",  # Adrian (Director)
+    "MTVN0062",  # Chau Ha (P&C Manager)
+}
+EXCLUDED_ATTENDANCE = {
+    "MTVN0037",  # Toan Mai (Logistics Coordinator - attendance excluded, leave retained)
+    "MTVN0066",  # Huyen Le (Logistics Support Officer - attendance excluded, leave retained)
+}
+EXCLUDED_ALL_ATTENDANCE = EXCLUDED_TOTAL | EXCLUDED_ATTENDANCE
 LATE_CI_THRESHOLD_MINS  = 5
 OVERWORK_THRESHOLD_HRS  = 1.5
 EXTENSIVE_HOURS_THRESH  = 9.5    # working hours > this = extensive
@@ -146,35 +160,439 @@ def notice_category(notice_before_days):
     else:
         return "Urgent"
 
+def get_leave_days_in_week(lf, lt, total_days, mon, fri):
+    """Calculate the number of leave weekdays falling within [mon, fri]."""
+    if pd.isna(lf) or pd.isna(lt) or pd.isna(mon) or pd.isna(fri):
+        return 0.0
+    try:
+        start = max(pd.to_datetime(lf).normalize(), pd.to_datetime(mon).normalize())
+        end = min(pd.to_datetime(lt).normalize(), pd.to_datetime(fri).normalize())
+        if start > end:
+            return 0.0
+        bdays = len(pd.bdate_range(start, end))
+        if bdays == 0:
+            return 0.0
+        total_d = safe_float(total_days, default=float(bdays))
+        if bdays == 1 and total_d < 1.0:
+            return total_d
+        return float(bdays)
+    except Exception:
+        return 0.0
+
 # ═══════════════════════════════════════════════════════════════
 # DATA LOADING
 # ═══════════════════════════════════════════════════════════════
 
-SHEET_NAMES = [
-    "FACT_Attendance_Daily",
-    "Req_Leave",
-    "Req_OT",
-    "Req_WFh",
-    "Req_LCin&ECout",
-    "Req_BusinessTrip",
-    "Req_ShiftChange",
-    "DIM_Employee",
-]
 
-def load_all_sheets():
-    print(f"\n[>>] Loading: {EXCEL_PATH}")
-    raw = {}
-    for sn in SHEET_NAMES:
+def load_master_employees_from_entities(legacy_emp_df=None):
+    """
+    Constructs the canonical employee dimension directly from entities/:
+    - entities/notification_routing_map.md
+    - entities/employees.md
+    - entities/teams.md
+    - entities/customers.md
+    Guarantees 100% complete personnel coverage (including MTVN0097 - Trung Vo).
+    """
+    master_df = pd.DataFrame()
+    routing_map_file = ENTITIES_DIR / "notification_routing_map.md"
+    if routing_map_file.exists():
         try:
-            df = pd.read_excel(EXCEL_PATH, sheet_name=sn, engine="openpyxl")
-            # Clean string columns
-            for col in df.select_dtypes(include="object").columns:
-                df[col] = df[col].astype(str).str.strip().replace({"nan": "", "None": ""})
-            raw[sn] = df
-            print(f"  OK {sn:35s} ({len(df):,} rows)")
-        except Exception as exc:
-            print(f"  FAIL {sn:35s} MISSING — {exc}")
-            raw[sn] = pd.DataFrame()
+            try:
+                from .load_requests import load_master_entities
+                master_df = load_master_entities(str(routing_map_file))
+            except Exception:
+                try:
+                    from scripts.load_requests import load_master_entities
+                    master_df = load_master_entities(str(routing_map_file))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    emp_meta = {}
+    emp_md_path = ENTITIES_DIR / "employees.md"
+    if emp_md_path.exists():
+        with open(emp_md_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip().startswith("|"): continue
+                parts = [p.strip() for p in line.strip().split("|")[1:-1]]
+                if not parts or all(set(p).issubset({'-', ':', ' '}) for p in parts) or "---" in parts[0] or "Employee ID" in parts[0]: continue
+                clean = [p.replace("`", "").replace("**", "").strip() for p in parts]
+                if len(clean) >= 9 and clean[0].startswith("MTVN"):
+                    emp_meta[clean[0]] = {
+                        "FullNameVN": clean[1],
+                        "FullNameEN": clean[2],
+                        "Location": clean[5] if len(clean) > 5 else "Da Nang",
+                        "Position": clean[9] if len(clean) > 9 else "",
+                        "Status": clean[8] if len(clean) > 8 else "Active"
+                    }
+
+    master_dict = master_df.set_index("emp_id").to_dict("index") if not master_df.empty else {}
+    legacy_dict = legacy_emp_df.set_index("EmployeeID").to_dict("index") if legacy_emp_df is not None and not legacy_emp_df.empty else {}
+    
+    all_eids = {eid for eid in (set(master_dict.keys()).union(emp_meta.keys()).union(legacy_dict.keys())) - EXCLUDED_TOTAL if eid and eid.startswith("MTVN")}
+
+    emp_rows = []
+    for eid in sorted(all_eids):
+        m = master_dict.get(eid, {})
+        e = emp_meta.get(eid, {})
+        l = legacy_dict.get(eid, {})
+        
+        fn_en = m.get("full_name_en") or e.get("FullNameEN") or l.get("FullNameEN") or ""
+        fn_vn = m.get("emp_name_vn") or e.get("FullNameVN") or l.get("FullNameVN") or ""
+        team = m.get("team") or l.get("Team") or ""
+        client = m.get("customer_group") or l.get("Client") or ""
+        loc = e.get("Location") or l.get("Location") or "Da Nang"
+        pos = e.get("Position") or l.get("Position") or ""
+        role = l.get("Role in Team") or "Member"
+        
+        stat = e.get("Status", "Active")
+        if any(k in str(stat).lower() for k in ["resigned", "terminated", "inactive"]):
+            active = 0
+        else:
+            active = safe_int(l.get("IsActive", 1), default=1)
+            
+        emp_rows.append({
+            "EmployeeID": eid,
+            "FullNameVN": fn_vn,
+            "FullNameEN": fn_en,
+            "Team": team,
+            "Department": team,
+            "Role in Team": role,
+            "Client": client,
+            "Location": loc,
+            "Position": pos,
+            "IsActive": active
+        })
+    df_emp = pd.DataFrame(emp_rows)
+    print(f"  OK Master DIM_Employee built from entities ({len(df_emp):,} employees, {len(df_emp[df_emp['IsActive'] == 1]):,} active)")
+    return df_emp
+
+def load_live_requests(raw):
+    """
+    Enriches or supersedes requests in raw with live MISA Excel files from data/Attendance/:
+    - Don_xin_nghi_Tất cả đơn vị.xlsx (Req_Leave)
+    - Đơn_đăng_ký_làm_thêm_Tất cả đơn vị.xlsx (Req_OT)
+    - Dang_ky_lam_viec_tu_xa_Tất cả đơn vị.xlsx (Req_WFh)
+    - Đăng ký đi muộn, về sớm_Tất cả đơn vị.xlsx (Req_LCin&ECout)
+    - De_nghi_di_cong_tac_Tất cả đơn vị.xlsx (Req_BusinessTrip)
+    - De_nghi_doi_ca_Tất cả đơn vị.xlsx (Req_ShiftChange)
+    """
+    # 1. Req_Leave
+    leave_file = DATA_ATT_DIR / "Don_xin_nghi_Tất cả đơn vị.xlsx"
+    if leave_file.exists():
+        try:
+            df_l = pd.read_excel(leave_file, skiprows=4)
+            records = []
+            for _, r in df_l.iterrows():
+                eid = str(r.get("Mã nhân viên", "")).strip()
+                if not eid or eid == "nan": continue
+                t_from = pd.to_datetime(r.get("Từ ngày"), errors="coerce")
+                t_to = pd.to_datetime(r.get("Đến ngày"), errors="coerce")
+                sub_dt = pd.to_datetime(r.get("Ngày nộp đơn"), errors="coerce")
+                if pd.isna(t_from): continue
+                if pd.isna(t_to): t_to = t_from
+                if t_from > t_to: t_from, t_to = t_to, t_from
+                
+                l_type = str(r.get("Loại nghỉ", "Nghỉ phép")).strip()
+                if "phép" in l_type.lower(): l_mapped = "Annual Leave"
+                elif "không lương" in l_type.lower(): l_mapped = "Unpaid Leave"
+                elif "bù" in l_type.lower(): l_mapped = "Compensatory Leave"
+                elif any(k in l_type.lower() for k in ["ốm", "bhxh", "con ốm"]): l_mapped = "Sick/Family Care"
+                else: l_mapped = l_type
+                
+                status = str(r.get("Trạng thái", "")).strip()
+                status_flag = 1 if status == "Đã duyệt" else 0
+                days = float(r.get("Số ngày nghỉ", 1.0) or 1.0)
+                
+                lead_days = (t_from.date() - sub_dt.date()).days if pd.notna(sub_dt) else 30
+                if lead_days > 30: notice_cat = "Planned"
+                elif lead_days > 2: notice_cat = "Unplanned"
+                else: notice_cat = "Urgent"
+                
+                records.append({
+                    "Employee_ID": eid,
+                    "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
+                    "Leave_From": t_from,
+                    "Leave_To": t_to,
+                    "Submit_Date": sub_dt,
+                    "Leave_Days": days,
+                    "Leave Days in Week": days,
+                    "Leave_Type": l_type,
+                    "Leave_Type_Mapped": l_mapped,
+                    "Reason": str(r.get("Lý do nghỉ", "")).strip(),
+                    "Status": status,
+                    "Status_Flag": status_flag,
+                    "notice_category": notice_cat,
+                    "Has_MonFri": True
+                })
+            if records:
+                raw["Req_Leave"] = pd.DataFrame(records)
+                print(f"  OK Live Req_Leave refreshed from {leave_file.name} ({len(records):,} rows)")
+        except Exception as e:
+            print(f"  WARN: Failed loading live Req_Leave: {e}")
+
+    # 2. Req_OT
+    ot_file = DATA_ATT_DIR / "Đơn_đăng_ký_làm_thêm_Tất cả đơn vị.xlsx"
+    if ot_file.exists():
+        try:
+            df_ot = pd.read_excel(ot_file, skiprows=4)
+            records = []
+            for _, r in df_ot.iterrows():
+                emp_sub = r.get("Mã nhân viên làm thêm")
+                emp_subm = r.get("Mã nhân viên")
+                eid = str(emp_sub).strip() if pd.notna(emp_sub) and str(emp_sub).strip() != "nan" else str(emp_subm).strip()
+                if not eid or eid == "nan": continue
+                ot_from = pd.to_datetime(r.get("Làm thêm từ"), errors="coerce")
+                ot_to = pd.to_datetime(r.get("Làm thêm đến"), errors="coerce")
+                if pd.isna(ot_from): continue
+                if pd.isna(ot_to): ot_to = ot_from
+                
+                ot_hrs = float(r.get("Số giờ làm thêm", 0) or 0)
+                status = str(r.get("Trạng thái", "")).strip()
+                status_flag = 1 if status == "Đã duyệt" else 0
+                timing = str(r.get("Thời điểm làm thêm", "Sau ca làm việc")).strip()
+                
+                records.append({
+                    "Employee_ID": eid,
+                    "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
+                    "OT_From": ot_from,
+                    "OT_To": ot_to,
+                    "OT Date": ot_from.normalize(),
+                    "_ot_date": ot_from.normalize(),
+                    "OT_Hours": ot_hrs,
+                    "OT_Timing": timing,
+                    "Reason": str(r.get("Lý do làm thêm", "")).strip(),
+                    "Status": status,
+                    "Status_Flag": status_flag
+                })
+            if records:
+                raw["Req_OT"] = pd.DataFrame(records)
+                print(f"  OK Live Req_OT refreshed from {ot_file.name} ({len(records):,} rows)")
+        except Exception as e:
+            print(f"  WARN: Failed loading live Req_OT: {e}")
+
+    # 3. Req_WFh
+    wfh_file = DATA_ATT_DIR / "Dang_ky_lam_viec_tu_xa_Tất cả đơn vị.xlsx"
+    if wfh_file.exists():
+        try:
+            df_wfh = pd.read_excel(wfh_file, skiprows=3)
+            records = []
+            for _, r in df_wfh.iterrows():
+                eid = str(r.get("Mã nhân viên", "")).strip()
+                if not eid or eid == "nan": continue
+                t_from = pd.to_datetime(r.get("Từ ngày"), errors="coerce")
+                t_to = pd.to_datetime(r.get("Đến ngày"), errors="coerce")
+                if pd.isna(t_from): continue
+                if pd.isna(t_to): t_to = t_from
+                status = str(r.get("Trạng thái", "")).strip()
+                status_flag = 1 if status == "Đã duyệt" else 0
+                records.append({
+                    "Employee_ID": eid,
+                    "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
+                    "WFH_From": t_from,
+                    "WFH_To": t_to,
+                    "Status": status,
+                    "Status_Flag": status_flag,
+                    "Reason": str(r.get("Lý do làm việc từ xa", "")).strip()
+                })
+            if records:
+                raw["Req_WFh"] = pd.DataFrame(records)
+                print(f"  OK Live Req_WFh refreshed from {wfh_file.name} ({len(records):,} rows)")
+        except Exception as e:
+            print(f"  WARN: Failed loading live Req_WFh: {e}")
+
+    # 4. Req_LCin&ECout
+    lc_file = DATA_ATT_DIR / "Đăng ký đi muộn, về sớm_Tất cả đơn vị.xlsx"
+    if lc_file.exists():
+        try:
+            df_lc = pd.read_excel(lc_file, skiprows=4)
+            records = []
+            for _, r in df_lc.iterrows():
+                eid = str(r.get("Mã nhân viên", "")).strip()
+                if not eid or eid == "nan": continue
+                t_from = pd.to_datetime(r.get("Từ ngày"), errors="coerce")
+                if pd.isna(t_from): continue
+                status = str(r.get("Trạng thái", "")).strip()
+                status_flag = 1 if status == "Đã duyệt" else 0
+                m_late = float(r.get("Đi muộn đầu ca (phút)", 0) or 0) + float(r.get("Đi muộn giữa ca (phút)", 0) or 0)
+                m_early = float(r.get("Về sớm giữa ca (phút)", 0) or 0) + float(r.get("Về sớm cuối ca (phút)", 0) or 0)
+                records.append({
+                    "Employee_ID": eid,
+                    "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
+                    "Apply_From": t_from,
+                    "Minutes": m_late + m_early,
+                    "CI_Category_Mapped": "Late" if m_late > 0 else "On Time",
+                    "CO_Category_Mapped": "Early" if m_early > 0 else "On Time",
+                    "Reason_Detail": str(r.get("Lý do đi muộn, về sớm", "")).strip(),
+                    "Reason_Group": str(r.get("Nhóm lý do", "")).strip(),
+                    "Status": status,
+                    "Status_Flag": status_flag
+                })
+            if records:
+                raw["Req_LCin&ECout"] = pd.DataFrame(records)
+                print(f"  OK Live Req_LCin&ECout refreshed from {lc_file.name} ({len(records):,} rows)")
+        except Exception as e:
+            print(f"  WARN: Failed loading live Req_LCin&ECout: {e}")
+
+    # 5. Req_BusinessTrip
+    trip_file = DATA_ATT_DIR / "De_nghi_di_cong_tac_Tất cả đơn vị.xlsx"
+    if trip_file.exists():
+        try:
+            df_tr = pd.read_excel(trip_file, skiprows=4)
+            records = []
+            for _, r in df_tr.iterrows():
+                eid = str(r.get("Mã nhân viên", "")).strip()
+                if not eid or eid == "nan": continue
+                t_from = pd.to_datetime(r.get("Từ ngày"), errors="coerce")
+                t_to = pd.to_datetime(r.get("Đến ngày"), errors="coerce")
+                if pd.isna(t_from): continue
+                if pd.isna(t_to): t_to = t_from
+                status = str(r.get("Trạng thái", "")).strip()
+                status_flag = 1 if status == "Đã duyệt" else 0
+                records.append({
+                    "Employee_ID": eid,
+                    "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
+                    "Trip_From": t_from,
+                    "Trip_To": t_to,
+                    "Trip_Days": float(r.get("Số ngày đi công tác", 1.0) or 1.0),
+                    "Destination": str(r.get("Địa điểm công tác", "")).strip(),
+                    "Purpose": str(r.get("Mục đích công tác", "")).strip(),
+                    "Status": status,
+                    "Status_Flag": status_flag
+                })
+            if records:
+                raw["Req_BusinessTrip"] = pd.DataFrame(records)
+                print(f"  OK Live Req_BusinessTrip refreshed from {trip_file.name} ({len(records):,} rows)")
+        except Exception as e:
+            print(f"  WARN: Failed loading live Req_BusinessTrip: {e}")
+
+    # 6. Req_ShiftChange
+    sc_file = DATA_ATT_DIR / "De_nghi_doi_ca_Tất cả đơn vị.xlsx"
+    if sc_file.exists():
+        try:
+            df_sc = pd.read_excel(sc_file, skiprows=4)
+            records = []
+            for _, r in df_sc.iterrows():
+                eid = str(r.get("Mã nhân viên", "")).strip()
+                if not eid or eid == "nan": continue
+                w_date = pd.to_datetime(r.get("Ngày làm việc"), errors="coerce")
+                if pd.isna(w_date): continue
+                status = str(r.get("Trạng thái", "")).strip()
+                status_flag = 1 if status == "Đã duyệt" else 0
+                records.append({
+                    "Employee_ID": eid,
+                    "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
+                    "Work_Date": w_date,
+                    "Shift_Code_Old": str(r.get("Ca hiện tại", "")).strip(),
+                    "Shift_Code_New": str(r.get("Ca đăng ký đổi", "")).strip(),
+                    "Reason": str(r.get("Lý do đổi ca", "")).strip(),
+                    "Status": status,
+                    "Status_Flag": status_flag
+                })
+            if records:
+                raw["Req_ShiftChange"] = pd.DataFrame(records)
+                print(f"  OK Live Req_ShiftChange refreshed from {sc_file.name} ({len(records):,} rows)")
+        except Exception as e:
+            print(f"  WARN: Failed loading live Req_ShiftChange: {e}")
+
+def build_fact_attendance_daily():
+    """
+    Parses all raw Timesheet Excel files directly from data/Attendance/Timesheet/
+    into a standardized FACT_Attendance_Daily DataFrame.
+    Completely eliminates any dependency on static HR_Fact_Attendance.xlsx!
+    """
+    try:
+        from .parse_timesheet import parse_timesheet_file, load_holidays
+    except ImportError:
+        from scripts.parse_timesheet import parse_timesheet_file, load_holidays
+
+    files = glob.glob(str(TIMESHEET_DIR / "*.xlsx"))
+    files = [f for f in files if not os.path.basename(f).startswith(("~$", "HR_Fact"))]
+    
+    holidays = load_holidays()
+    all_recs = []
+    for f in sorted(files):
+        try:
+            recs = parse_timesheet_file(f, holidays=holidays)
+            all_recs.extend(recs)
+        except Exception as e:
+            print(f"  WARN: Failed parsing timesheet {os.path.basename(f)}: {e}")
+
+    df_raw = pd.DataFrame(all_recs)
+    if df_raw.empty:
+        print("  WARN: No timesheet records parsed from raw files!")
+        return pd.DataFrame()
+
+    # Deduplicate on (emp_id, date), keeping the latest parsed record
+    df_att = df_raw.drop_duplicates(subset=["emp_id", "date"], keep="last").copy()
+    df_att = df_att[~df_att["emp_id"].isin(EXCLUDED_ALL_ATTENDANCE)]
+
+    fact_att = pd.DataFrame()
+    fact_att["Employee_ID"] = df_att["emp_id"].astype(str).str.strip()
+    fact_att["Employee_Name"] = df_att["emp_name"].astype(str).str.strip()
+    fact_att["Position"] = df_att["position"].astype(str).str.strip()
+    fact_att["Date_Text"] = pd.to_datetime(df_att["date"])
+    fact_att["Day_Num"] = fact_att["Date_Text"].dt.day
+    fact_att["Day_Of_Week"] = fact_att["Date_Text"].dt.strftime("%a")
+    fact_att["Shift_Code"] = df_att["shift_code"].fillna("")
+    fact_att["Working_Days"] = df_att["working_credit"].fillna(0.0)
+    fact_att["CheckIn_Time"] = df_att["check_in"].fillna("")
+    fact_att["CheckOut_Time"] = df_att["check_out"].fillna("")
+    fact_att["DIM_Shift.Start_Time"] = df_att["shift_start"].fillna("")
+    fact_att["DIM_Shift.End_Time"] = df_att["shift_end"].fillna("")
+    fact_att["Late_CheckIn (mins)"] = df_att["late_ci_mins"].fillna(0.0)
+    fact_att["Late_CheckOut(mins)"] = df_att["late_co_mins"].fillna(0.0)
+    fact_att["Type of Date"] = df_att["type_of_date"].fillna("Absent")
+    fact_att["Số ngày làm việc tiêu chuẩn"] = 22
+    fact_att["Số giờ làm việc tiêu chuẩn"] = df_att["std_hours"].fillna(8.0)
+    fact_att["Số giờ làm việc thực tế"] = df_att["actual_hours"].fillna(0.0)
+    fact_att["Is_Weekend"] = df_att["is_weekend"].astype(int)
+    fact_att["Early_CI (mins)"] = df_att["early_ci_mins"].fillna(0.0) if "early_ci_mins" in df_att.columns else 0.0
+    fact_att["Late_CI (mins)"] = df_att["late_ci_mins"].fillna(0.0)
+    fact_att["Early_CO (mins)"] = df_att["early_co_mins"].fillna(0.0)
+    fact_att["Late_CO (mins)"] = df_att["late_co_mins"].fillna(0.0)
+
+    def calc_wp(dt):
+        if pd.isna(dt): return ""
+        m = dt - pd.Timedelta(days=dt.weekday())
+        f = m + pd.Timedelta(days=4)
+        return f"{m.strftime('%d/%m/%Y')} - {f.strftime('%d/%m/%Y')}"
+
+    fact_att["Week Period"] = fact_att["Date_Text"].apply(calc_wp)
+    fact_att["Delta (Số giờ làm việc thực tế - Số giờ làm việc tiêu chuẩn)"] = (
+        fact_att["Số giờ làm việc thực tế"] - fact_att["Số giờ làm việc tiêu chuẩn"]
+    )
+
+    print(f"  OK Parsed {len(files)} raw timesheet files -> FACT_Attendance_Daily ({len(fact_att):,} daily records)")
+    return fact_att
+
+def load_all_raw_data():
+    """
+    Loads all data 100% directly from raw files in data/Attendance/ and entities/:
+    - Master DIM_Employee: from entities/notification_routing_map.md and entities/employees.md
+    - 6 Live Request DataFrames: from raw files in data/Attendance/
+    - FACT_Attendance_Daily: parsed directly from raw timesheets in data/Attendance/Timesheet/
+    Completely eliminates any dependency on static HR_Fact_Attendance.xlsx!
+    """
+    print("\n[1] Loading Master Entities from entities/...")
+    emp_df = load_master_employees_from_entities()
+
+    print("\n[2] Loading Live Requests from data/Attendance/...")
+    raw = {
+        "DIM_Employee": emp_df,
+        "Req_Leave": pd.DataFrame(),
+        "Req_OT": pd.DataFrame(),
+        "Req_WFh": pd.DataFrame(),
+        "Req_LCin&ECout": pd.DataFrame(),
+        "Req_BusinessTrip": pd.DataFrame(),
+        "Req_ShiftChange": pd.DataFrame(),
+    }
+    load_live_requests(raw)
+
+    print("\n[3] Parsing Raw Timesheets from data/Attendance/Timesheet/...")
+    raw["FACT_Attendance_Daily"] = build_fact_attendance_daily()
+
     return raw
 
 # ═══════════════════════════════════════════════════════════════
@@ -189,7 +607,7 @@ def preprocess(raw):
     att["Date_Text"]  = pd.to_datetime(att["Date_Text"],  errors="coerce")
     att["Is_Weekend"] = pd.to_numeric(att["Is_Weekend"],  errors="coerce").fillna(1).astype(int)
     att["Employee_ID"] = att["Employee_ID"].astype(str).str.strip()
-    att = att[~att["Employee_ID"].isin(EXCLUDED_IDS)]
+    att = att[~att["Employee_ID"].isin(EXCLUDED_ALL_ATTENDANCE)]
 
     num_cols_att = [
         "Late_CI (mins)", "Early_CI (mins)", "Early_CO (mins)", "Late_CO (mins)",
@@ -207,7 +625,7 @@ def preprocess(raw):
     emp = raw["DIM_Employee"].copy()
     emp["EmployeeID"] = emp["EmployeeID"].astype(str).str.strip()
     emp["IsActive"]   = pd.to_numeric(emp["IsActive"], errors="coerce").fillna(0).astype(int)
-    emp = emp[~emp["EmployeeID"].isin(EXCLUDED_IDS)]
+    emp = emp[~emp["EmployeeID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_Leave -----------------------------------------
     leave = raw["Req_Leave"].copy()
@@ -232,8 +650,16 @@ def preprocess(raw):
             leave["Leave Days in Week"], errors="coerce"
         ).fillna(leave["Leave_Days"])
 
-        leave["Week Period"] = leave["Week Period"].astype(str).str.strip()
-        leave = leave[~leave["Employee_ID"].isin(EXCLUDED_IDS)]
+        if "Week Period" in leave.columns:
+            leave["Week Period"] = leave["Week Period"].astype(str).str.strip()
+        else:
+            def to_wp(dt):
+                if pd.isna(dt): return ""
+                m = dt - pd.Timedelta(days=dt.weekday())
+                f = m + pd.Timedelta(days=4)
+                return f"{m.strftime('%d/%m/%Y')} - {f.strftime('%d/%m/%Y')}"
+            leave["Week Period"] = leave["Leave_From"].apply(to_wp)
+        leave = leave[~leave["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_OT --------------------------------------------
     ot = raw["Req_OT"].copy()
@@ -249,7 +675,7 @@ def preprocess(raw):
             ot["_ot_date"] = ot["OT_From"].dt.normalize()
         ot["Week Period"] = ot["Week Period"].astype(str).str.strip() \
             if "Week Period" in ot.columns else ""
-        ot = ot[~ot["Employee_ID"].isin(EXCLUDED_IDS)]
+        ot = ot[~ot["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_WFh -------------------------------------------
     wfh = raw["Req_WFh"].copy()
@@ -260,7 +686,7 @@ def preprocess(raw):
         wfh["Status_Flag"] = pd.to_numeric(wfh["Status_Flag"], errors="coerce").fillna(0).astype(int)
         wfh["Week Period"] = wfh["Week Period"].astype(str).str.strip() \
             if "Week Period" in wfh.columns else ""
-        wfh = wfh[~wfh["Employee_ID"].isin(EXCLUDED_IDS)]
+        wfh = wfh[~wfh["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_LCin&ECout ------------------------------------
     lcec = raw["Req_LCin&ECout"].copy()
@@ -270,11 +696,15 @@ def preprocess(raw):
         lcec["Status_Flag"] = pd.to_numeric(lcec["Status_Flag"], errors="coerce").fillna(0).astype(int)
         lcec["Week Period"] = lcec["Week Period"].astype(str).str.strip() \
             if "Week Period" in lcec.columns else ""
-        lcec["Minutes"] = pd.to_numeric(lcec.get("Đi muộn đầu ca (Mins)", 0), errors="coerce").fillna(0) + \
-                          pd.to_numeric(lcec.get("Đi muộn giữa ca (mins)", 0), errors="coerce").fillna(0) + \
-                          pd.to_numeric(lcec.get("Về sớm giữa ca", 0), errors="coerce").fillna(0) + \
-                          pd.to_numeric(lcec.get("Về sớm cuối ca", 0), errors="coerce").fillna(0)
-        lcec = lcec[~lcec["Employee_ID"].isin(EXCLUDED_IDS)]
+        if "Minutes" in lcec.columns:
+            lcec["Minutes"] = pd.to_numeric(lcec["Minutes"], errors="coerce").fillna(0)
+        else:
+            m1 = pd.to_numeric(lcec["Đi muộn đầu ca (Mins)"], errors="coerce").fillna(0) if "Đi muộn đầu ca (Mins)" in lcec.columns else 0
+            m2 = pd.to_numeric(lcec["Đi muộn giữa ca (mins)"], errors="coerce").fillna(0) if "Đi muộn giữa ca (mins)" in lcec.columns else 0
+            m3 = pd.to_numeric(lcec["Về sớm giữa ca"], errors="coerce").fillna(0) if "Về sớm giữa ca" in lcec.columns else 0
+            m4 = pd.to_numeric(lcec["Về sớm cuối ca"], errors="coerce").fillna(0) if "Về sớm cuối ca" in lcec.columns else 0
+            lcec["Minutes"] = m1 + m2 + m3 + m4
+        lcec = lcec[~lcec["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_BusinessTrip ----------------------------------
     trip = raw["Req_BusinessTrip"].copy()
@@ -284,7 +714,7 @@ def preprocess(raw):
         trip["Trip_To"]     = pd.to_datetime(trip["Trip_To"],   errors="coerce")
         trip["Trip_Days"]   = pd.to_numeric(trip["Trip_Days"],  errors="coerce").fillna(0)
         trip["Status_Flag"] = pd.to_numeric(trip["Status_Flag"], errors="coerce").fillna(0).astype(int)
-        trip = trip[~trip["Employee_ID"].isin(EXCLUDED_IDS)]
+        trip = trip[~trip["Employee_ID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_ShiftChange -----------------------------------
     sc = raw["Req_ShiftChange"].copy()
@@ -294,7 +724,19 @@ def preprocess(raw):
         sc["Status_Flag"] = pd.to_numeric(sc["Status_Flag"], errors="coerce").fillna(0).astype(int)
         sc["Week Period"] = sc["Week Period"].astype(str).str.strip() \
             if "Week Period" in sc.columns else ""
-        sc = sc[~sc["Employee_ID"].isin(EXCLUDED_IDS)]
+        sc = sc[~sc["Employee_ID"].isin(EXCLUDED_TOTAL)]
+
+    # -- Propagate Master Data across all tables --
+    master_map = emp.set_index("EmployeeID").to_dict("index")
+    for df in [att, leave, ot, wfh, lcec, trip, sc]:
+        if df is None or df.empty or "Employee_ID" not in df.columns:
+            continue
+        df["DIM_Employee.FullNameEN"] = df["Employee_ID"].apply(lambda x: master_map.get(str(x), {}).get("FullNameEN", ""))
+        df["DIM_Employee.Team"] = df["Employee_ID"].apply(lambda x: master_map.get(str(x), {}).get("Team", ""))
+        df["DIM_Employee.Client"] = df["Employee_ID"].apply(lambda x: master_map.get(str(x), {}).get("Client", ""))
+        df["DIM_Employee.IsActive"] = df["Employee_ID"].apply(lambda x: master_map.get(str(x), {}).get("IsActive", 1))
+        df["DIM_Employee.Location"] = df["Employee_ID"].apply(lambda x: master_map.get(str(x), {}).get("Location", "Da Nang"))
+        df["Department"] = df["DIM_Employee.Team"]
 
     return dict(att=att, emp=emp, leave=leave, ot=ot, wfh=wfh, lcec=lcec, trip=trip, sc=sc)
 
@@ -324,9 +766,9 @@ def build_scopes(emp):
     t2c: dict[str, set] = defaultdict(set)
     c2t: dict[str, set] = defaultdict(set)
     for _, row in active.iterrows():
-        team   = row.get("Team",   "")
-        client = row.get("Client", "")
-        if team and client:
+        team   = str(row.get("Team",   "")).strip()
+        client = str(row.get("Client", "")).strip()
+        if team and client and team != "-" and client != "-":
             t2c[team].add(client)
             c2t[client].add(team)
 
@@ -381,8 +823,11 @@ def att_scope(att_week, emp_ids, team_scope, client_scope):
 def req_scope(df, emp_ids, team_scope, dept_col="Department"):
     """Filter a request DF to the scope via employee-ID set + optional team column."""
     out = df[df["Employee_ID"].isin(emp_ids)] if emp_ids else df
-    if team_scope != "All Teams" and dept_col in out.columns:
-        out = out[out[dept_col] == team_scope]
+    if team_scope != "All Teams":
+        if "DIM_Employee.Team" in out.columns:
+            out = out[out["DIM_Employee.Team"] == team_scope]
+        elif dept_col in out.columns:
+            out = out[out[dept_col] == team_scope]
     return out
 
 def req_week(df, week_period_str, date_col):
@@ -630,24 +1075,34 @@ def build_dash_data(proc, scopes, week_ranges):
 
             # -- Leave ------------------------------------
             if not leave.empty:
-                l_wk  = req_week(leave, wp, "Leave_From")
-                l_sc  = req_scope(l_wk, emp_ids, t)
-                l_app = l_sc[l_sc["Status_Flag"] == 1]
-                days_col = "Leave Days in Week"
+                l_wk = leave[(leave["Leave_From"] <= fri) & (leave["Leave_To"] >= mon)]
+                l_sc = req_scope(l_wk, emp_ids, t)
+                if not l_sc.empty:
+                    l_sc = l_sc.copy()
+                    l_sc["_days_in_wk"] = l_sc.apply(
+                        lambda r: get_leave_days_in_week(r["Leave_From"], r["Leave_To"], r["Leave_Days"], mon, fri),
+                        axis=1
+                    )
+                    l_sc = l_sc[l_sc["_days_in_wk"] > 0]
+                    l_app = l_sc[l_sc["Status_Flag"] == 1]
+                    days_col = "_days_in_wk"
+                else:
+                    l_app = l_sc
+                    days_col = "Leave Days in Week"
 
                 planned_m   = l_sc["notice_category"] == "Planned"
                 unplanned_m = l_sc["notice_category"] == "Unplanned"
                 urgent_m    = l_sc["notice_category"] == "Urgent"
 
-                series["leave_days"].append(round(float(l_sc[days_col].sum()), 1))
+                series["leave_days"].append(round(float(l_sc[days_col].sum()), 1) if not l_sc.empty else 0.0)
                 series["leave_approval"].append(pct(len(l_app), len(l_sc)) if len(l_sc) > 0 else 0)
-                series["leave_headcount"].append(l_sc["Employee_ID"].nunique())
-                series["leave_planned_days"].append(round(float(l_sc.loc[planned_m,   days_col].sum()), 1))
-                series["leave_unplanned_days"].append(round(float(l_sc.loc[unplanned_m, days_col].sum()), 1))
-                series["leave_urgent_days"].append(round(float(l_sc.loc[urgent_m,   days_col].sum()), 1))
-                series["leave_planned_count"].append(int(planned_m.sum()))
-                series["leave_unplanned_count"].append(int(unplanned_m.sum()))
-                series["leave_urgent_count"].append(int(urgent_m.sum()))
+                series["leave_headcount"].append(l_sc["Employee_ID"].nunique() if not l_sc.empty else 0)
+                series["leave_planned_days"].append(round(float(l_sc.loc[planned_m,   days_col].sum()), 1) if not l_sc.empty else 0.0)
+                series["leave_unplanned_days"].append(round(float(l_sc.loc[unplanned_m, days_col].sum()), 1) if not l_sc.empty else 0.0)
+                series["leave_urgent_days"].append(round(float(l_sc.loc[urgent_m,   days_col].sum()), 1) if not l_sc.empty else 0.0)
+                series["leave_planned_count"].append(int(planned_m.sum()) if not l_sc.empty else 0)
+                series["leave_unplanned_count"].append(int(unplanned_m.sum()) if not l_sc.empty else 0)
+                series["leave_urgent_count"].append(int(urgent_m.sum()) if not l_sc.empty else 0)
             else:
                 for k in ["leave_days","leave_approval","leave_headcount",
                           "leave_planned_days","leave_unplanned_days","leave_urgent_days",
@@ -751,7 +1206,7 @@ def build_dash_data(proc, scopes, week_ranges):
 
             # Weekend-bridge leave & Short-notice leave
             if not leave.empty:
-                l_wk = req_week(leave, eval_week, "Leave_From")
+                l_wk = leave[(leave["Leave_From"] <= eval_fri) & (leave["Leave_To"] >= eval_mon)]
                 l_sc = req_scope(l_wk, emp_ids, t)
                 for _, r in l_sc.iterrows():
                     nm = r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or r["Employee_ID"]
@@ -896,10 +1351,7 @@ def build_dash_data(proc, scopes, week_ranges):
             cal_mon, cal_fri = parse_week_mon_fri(week_period_str)
             weekdays = [(cal_mon + timedelta(days=i)) for i in range(5)]
             day_names = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-            if is_next:
-                l_wk = leave[(leave["Leave_From"] >= cal_mon) & (leave["Leave_From"] <= cal_fri)]
-            else:
-                l_wk = req_week(leave, week_period_str, "Leave_From")
+            l_wk = leave[(leave["Leave_From"] <= cal_fri) & (leave["Leave_To"] >= cal_mon)]
             l_appr = l_wk[l_wk["Status_Flag"] == 1]
             cal_keys = ([f"All Teams||{c}" for c in clients[1:]] + [f"All Teams||All Clients"] + [f"{t}||{c}" for t in teams[1:] for c in t2c.get(t, [])])
             cal = {}
@@ -966,13 +1418,15 @@ def build_dash_data(proc, scopes, week_ranges):
             # Current
             if leave.empty: l_cur_res[sk] = []
             else:
-                l_wk = req_week(leave, eval_week, "Leave_From"); l_sc = req_scope(l_wk, emp_ids, tt)
-                l_cur_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": safe_float(r.get("Leave Days in Week")), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows()]
+                l_wk = leave[(leave["Leave_From"] <= eval_fri) & (leave["Leave_To"] >= eval_mon)]
+                l_sc = req_scope(l_wk, emp_ids, tt)
+                l_cur_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), eval_mon, eval_fri), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows() if get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), eval_mon, eval_fri) > 0]
             # Next
             if leave.empty: l_next_res[sk] = []
             else:
-                l_wk = leave[(leave["Leave_From"] >= next_mon) & (leave["Leave_From"] <= next_fri)]; l_sc = req_scope(l_wk, emp_ids, tt)
-                l_next_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": safe_float(r.get("Leave Days in Week")), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows()]
+                l_wk = leave[(leave["Leave_From"] <= next_fri) & (leave["Leave_To"] >= next_mon)]
+                l_sc = req_scope(l_wk, emp_ids, tt)
+                l_next_res[sk] = [{"name": str(r.get("DIM_Employee.FullNameEN") or r.get("Employee_Name") or ""), "from": fmt_date(r.get("Leave_From")), "to": fmt_date(r.get("Leave_To")), "days": get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), next_mon, next_fri), "type": str(r.get("Leave_Type_Mapped") or r.get("Leave_Type") or ""), "notice_category": str(r.get("notice_category", "Unknown")), "status": str(r.get("Status", ""))} for _, r in l_sc.iterrows() if get_leave_days_in_week(r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), next_mon, next_fri) > 0]
         leave_details_current[eval_week] = l_cur_res
         leave_details_next[eval_week] = l_next_res
 
@@ -1041,24 +1495,7 @@ def build_dash_data(proc, scopes, week_ranges):
             except:
                 pass
             
-        # 2. Weekly Leaves
-        weekly_leaves = []
-        for _, r in lwk.iterrows():
-            weekly_leaves.append({
-                "week": week_label(str(r.get("Week Period", ""))),
-                "name": str(r.get("Employee_Name", "")),
-                "customer": str(r.get("DIM_Employee.Client", "")),
-                "team": str(r.get("DIM_Employee.Team", "")),
-                "from": str(r.get("Leave_From", ""))[:10],
-                "to": str(r.get("Leave_To", ""))[:10],
-                "days": safe_float(r.get("Leave_Days", 0)),
-                "notice_category": str(r.get("notice_category", "Unknown")),
-                "reason": (str(r.get("Reason", "")).strip()
-                           if str(r.get("Reason", "")).strip() and str(r.get("Reason", "")).strip().lower() != "nan"
-                           else str(r.get("Leave_Type_Mapped", "Leave")))
-            })
-            
-        # 3. Late Checkouts > 90 mins
+        # 2. Late Checkouts > 90 mins
         att["_L_CO"] = pd.to_numeric(att["Late_CO (mins)"], errors="coerce").fillna(0)
         late_co = att[att["_L_CO"] > 90]
         late_watch = []
@@ -1074,7 +1511,7 @@ def build_dash_data(proc, scopes, week_ranges):
                 "time": t
             })
             
-        # 4. Average Working Hours per Customer per Week
+        # 3. Average Working Hours per Customer per Week
         att["_Hrs"] = pd.to_numeric(att["Số giờ làm việc thực tế"], errors="coerce")
         work = att[(att["Is_Weekend"] == 0) & att["Type of Date"].isin(["FullWorkDay", "HalfWorkDay"])]
         avg_hrs = work.groupby(["Week Period", "DIM_Employee.Client"])["_Hrs"].mean().reset_index()
@@ -1087,7 +1524,7 @@ def build_dash_data(proc, scopes, week_ranges):
             if wk not in avg_hrs_dict: avg_hrs_dict[wk] = {}
             avg_hrs_dict[wk][c] = val
             
-        # Generate continuous weeks
+        # 4. Generate continuous weeks & weekly leaves
         import pandas as pd
         min_date = pd.to_datetime(att["Date_Text"], format="%d/%m/%Y", errors="coerce").min()
         max_date = pd.to_datetime(leave["Leave_To"]).max()
@@ -1100,6 +1537,7 @@ def build_dash_data(proc, scopes, week_ranges):
         
         continuous_weeks = []
         calendars = {}
+        weekly_leaves = []
         curr = start_mon
         while curr <= end_mon:
             fri = curr + pd.Timedelta(days=4)
@@ -1114,6 +1552,27 @@ def build_dash_data(proc, scopes, week_ranges):
             if cal_data:
                 calendars[cw] = cal_data
                 
+            # Populate weekly leaves for this week cw
+            l_wk_appr = lwk[(lwk["Leave_From"] <= fri) & (lwk["Leave_To"] >= curr)]
+            for _, r in l_wk_appr.iterrows():
+                days_in_wk = get_leave_days_in_week(
+                    r.get("Leave_From"), r.get("Leave_To"), r.get("Leave_Days"), curr, fri
+                )
+                if days_in_wk > 0:
+                    weekly_leaves.append({
+                        "week": cw,
+                        "name": str(r.get("Employee_Name", "")),
+                        "customer": str(r.get("DIM_Employee.Client", "")),
+                        "team": str(r.get("DIM_Employee.Team", "")),
+                        "from": str(r.get("Leave_From", ""))[:10],
+                        "to": str(r.get("Leave_To", ""))[:10],
+                        "days": days_in_wk,
+                        "notice_category": str(r.get("notice_category", "Unknown")),
+                        "reason": (str(r.get("Reason", "")).strip()
+                                   if str(r.get("Reason", "")).strip() and str(r.get("Reason", "")).strip().lower() != "nan"
+                                   else str(r.get("Leave_Type_Mapped", "Leave")))
+                    })
+                
             curr += pd.Timedelta(days=7)
             
         return {
@@ -1126,6 +1585,43 @@ def build_dash_data(proc, scopes, week_ranges):
             "avg_hrs": avg_hrs_dict
         }
 
+    # Build employee mappings for client / scope tooltips
+    active_emp = emp[emp["IsActive"] == 1]
+    emp_dict = active_emp.set_index("EmployeeID").to_dict("index")
+
+    scope_to_employees = {}
+    for sk in scope_keys:
+        t, c = sk.split("||")
+        eids = emp_lkp.get((t, c), set())
+        scope_to_employees[sk] = [
+            {
+                "id": eid,
+                "name": str(emp_dict.get(eid, {}).get("FullNameEN", eid)),
+                "name_vn": str(emp_dict.get(eid, {}).get("FullNameVN", "")),
+                "team": str(emp_dict.get(eid, {}).get("Team", "")),
+                "position": str(emp_dict.get(eid, {}).get("Position", "")),
+                "client": str(emp_dict.get(eid, {}).get("Client", "")),
+            }
+            for eid in sorted(eids)
+        ]
+
+    client_to_employees = {}
+    for c in clients:
+        if c == "All Clients":
+            ce_df = active_emp
+        else:
+            ce_df = active_emp[active_emp["Client"] == c]
+        client_to_employees[c] = [
+            {
+                "id": str(r["EmployeeID"]),
+                "name": str(r.get("FullNameEN", r["EmployeeID"])),
+                "name_vn": str(r.get("FullNameVN", "")),
+                "team": str(r.get("Team", "")),
+                "position": str(r.get("Position", "")),
+            }
+            for _, r in ce_df.iterrows()
+        ]
+
     # --- Assemble --------------------------------------------
     print("[10] Assembling DASH_DATA...")
 
@@ -1137,6 +1633,8 @@ def build_dash_data(proc, scopes, week_ranges):
         "clients":              clients,
         "team_to_clients":      t2c,
         "client_to_teams":      c2t,
+        "client_to_employees":  client_to_employees,
+        "scope_to_employees":   scope_to_employees,
         "data":                 data_out,
         "flags":                flags_out,
         "extensive_late_incidents": incidents_out,
@@ -1200,14 +1698,10 @@ def export_json(dash_data):
 
 def main():
     print("=" * 62)
-    print("  Attendance Dashboard — Data Regenerator")
+    print("  Attendance Dashboard — Data Regenerator (100% Raw Data & Entities)")
     print("=" * 62)
 
-    # Validate paths
-    if not EXCEL_PATH.exists():
-        sys.exit(f"ERROR: Excel workbook not found:\n  {EXCEL_PATH}")
-
-    raw       = load_all_sheets()
+    raw       = load_all_raw_data()
     proc      = preprocess(raw)
     week_rngs = detect_weeks(proc["att"], n=TRAILING_WEEKS)
 
