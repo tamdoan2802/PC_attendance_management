@@ -6,14 +6,26 @@ shift quotas, check-in/out timestamps, leave markers, and 15 raw data defects.
 """
 
 import os
+import sys
 import re
 import glob
 import datetime
 import pandas as pd
-from .config import (
-    TIMESHEET_DIR, SHIFT_CATALOG, DEPRECATED_SHIFTS, EXCLUDED_POPULATION_PREFIXES,
-    EXCLUDED_EMP_IDS, CHECKIN_GRACE_MINUTES, HOLIDAY_FILE
-)
+
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    from .config import (
+        TIMESHEET_DIR, SHIFT_CATALOG, DEPRECATED_SHIFTS, EXCLUDED_POPULATION_PREFIXES,
+        EXCLUDED_EMP_IDS, CHECKIN_GRACE_MINUTES, HOLIDAY_FILE
+    )
+except (ImportError, ValueError):
+    from config import (
+        TIMESHEET_DIR, SHIFT_CATALOG, DEPRECATED_SHIFTS, EXCLUDED_POPULATION_PREFIXES,
+        EXCLUDED_EMP_IDS, CHECKIN_GRACE_MINUTES, HOLIDAY_FILE
+    )
 
 def load_holidays(holiday_file=HOLIDAY_FILE):
     """Loads public holidays from CSV into a dict of {datetime.date: holiday_name}."""

@@ -7,15 +7,29 @@ and multi-day leave slicing.
 """
 
 import os
+import sys
 import re
 import datetime
 import pandas as pd
-from .config import (
-    REQ_LATE_EARLY, REQ_OVERTIME, REQ_WFH, REQ_SHIFT_CHANGE,
-    REQ_BUSINESS_TRIP, REQ_LEAVE, ROUTING_MAP_FILE, EMPLOYEES_FILE,
-    SHIFT_LABEL_MAP, NOTICE_SUDDEN_MAX_DAYS, NOTICE_SHORT_MAX_DAYS, NOTICE_PROMPT_MAX_DAYS,
-    EXCLUDED_EMP_IDS, EXCLUDED_TOTAL
-)
+
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    from .config import (
+        REQ_LATE_EARLY, REQ_OVERTIME, REQ_WFH, REQ_SHIFT_CHANGE,
+        REQ_BUSINESS_TRIP, REQ_LEAVE, ROUTING_MAP_FILE, EMPLOYEES_FILE,
+        SHIFT_LABEL_MAP, NOTICE_SUDDEN_MAX_DAYS, NOTICE_SHORT_MAX_DAYS, NOTICE_PROMPT_MAX_DAYS,
+        EXCLUDED_EMP_IDS, EXCLUDED_TOTAL
+    )
+except (ImportError, ValueError):
+    from config import (
+        REQ_LATE_EARLY, REQ_OVERTIME, REQ_WFH, REQ_SHIFT_CHANGE,
+        REQ_BUSINESS_TRIP, REQ_LEAVE, ROUTING_MAP_FILE, EMPLOYEES_FILE,
+        SHIFT_LABEL_MAP, NOTICE_SUDDEN_MAX_DAYS, NOTICE_SHORT_MAX_DAYS, NOTICE_PROMPT_MAX_DAYS,
+        EXCLUDED_EMP_IDS, EXCLUDED_TOTAL
+    )
 
 def load_master_entities(routing_map_file=ROUTING_MAP_FILE):
     """

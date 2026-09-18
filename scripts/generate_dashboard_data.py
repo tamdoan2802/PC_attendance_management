@@ -42,6 +42,8 @@ except ImportError:
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════
 THIS_DIR   = Path(__file__).parent.resolve()
+if str(THIS_DIR) not in sys.path:
+    sys.path.insert(0, str(THIS_DIR))
 WORKSPACE_DIR = THIS_DIR.parent.parent.parent.parent
 DATA_ATT_DIR = WORKSPACE_DIR / "data" / "Attendance"
 ENTITIES_DIR = WORKSPACE_DIR / "entities"
@@ -202,10 +204,14 @@ def load_master_employees_from_entities(legacy_emp_df=None):
                 master_df = load_master_entities(str(routing_map_file))
             except Exception:
                 try:
-                    from scripts.load_requests import load_master_entities
+                    from load_requests import load_master_entities
                     master_df = load_master_entities(str(routing_map_file))
                 except Exception:
-                    pass
+                    try:
+                        from scripts.load_requests import load_master_entities
+                        master_df = load_master_entities(str(routing_map_file))
+                    except Exception:
+                        pass
         except Exception:
             pass
 
@@ -504,8 +510,11 @@ def build_fact_attendance_daily():
     """
     try:
         from .parse_timesheet import parse_timesheet_file, load_holidays
-    except ImportError:
-        from scripts.parse_timesheet import parse_timesheet_file, load_holidays
+    except (ImportError, ValueError):
+        try:
+            from parse_timesheet import parse_timesheet_file, load_holidays
+        except (ImportError, ValueError):
+            from scripts.parse_timesheet import parse_timesheet_file, load_holidays
 
     files = glob.glob(str(TIMESHEET_DIR / "*.xlsx"))
     files = [f for f in files if not os.path.basename(f).startswith(("~$", "HR_Fact"))]

@@ -6,12 +6,26 @@ Frequent Excused Requests, and Customer Resource Bottlenecks.
 Outputs prioritized P&C Action Triggers.
 """
 
+import os
+import sys
 import pandas as pd
-from .config import (
-    BURNOUT_CONSECUTIVE_DAYS, BURNOUT_LATE_CO_MINUTES,
-    CHRONIC_LATENESS_MINUTES, CHRONIC_LATENESS_MAX_MONTH,
-    MANUAL_OVERRIDE_MAX_MONTH, EXCUSED_FREQ_MAX_WEEK
-)
+
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    from .config import (
+        BURNOUT_CONSECUTIVE_DAYS, BURNOUT_LATE_CO_MINUTES,
+        CHRONIC_LATENESS_MINUTES, CHRONIC_LATENESS_MAX_MONTH,
+        MANUAL_OVERRIDE_MAX_MONTH, EXCUSED_FREQ_MAX_WEEK
+    )
+except (ImportError, ValueError):
+    from config import (
+        BURNOUT_CONSECUTIVE_DAYS, BURNOUT_LATE_CO_MINUTES,
+        CHRONIC_LATENESS_MINUTES, CHRONIC_LATENESS_MAX_MONTH,
+        MANUAL_OVERRIDE_MAX_MONTH, EXCUSED_FREQ_MAX_WEEK
+    )
 
 def detect_burnout_risks(daily_df):
     """

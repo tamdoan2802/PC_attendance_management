@@ -18,16 +18,32 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
-from .config import (
-    DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL, SKILL_DIR
-)
-from .core_engine import (
-    reconcile_daily_attendance, compute_employee_summary,
-    compute_team_summary, compute_customer_capacity_loss,
-    compute_customer_personnel_summary
-)
-from .load_requests import compute_weekly_request_summary
-from .detect_anomalies import detect_all_anomalies
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    from .config import (
+        DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL, SKILL_DIR
+    )
+    from .core_engine import (
+        reconcile_daily_attendance, compute_employee_summary,
+        compute_team_summary, compute_customer_capacity_loss,
+        compute_customer_personnel_summary
+    )
+    from .load_requests import compute_weekly_request_summary
+    from .detect_anomalies import detect_all_anomalies
+except (ImportError, ValueError):
+    from config import (
+        DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL, SKILL_DIR
+    )
+    from core_engine import (
+        reconcile_daily_attendance, compute_employee_summary,
+        compute_team_summary, compute_customer_capacity_loss,
+        compute_customer_personnel_summary
+    )
+    from load_requests import compute_weekly_request_summary
+    from detect_anomalies import detect_all_anomalies
 
 def get_date_range_from_keyword(kw):
     today = datetime.date.today()

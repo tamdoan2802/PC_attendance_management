@@ -9,16 +9,33 @@ Adheres strictly to User Rule: Chronic Lateness is >30m and strictly UNEXCUSED.
 
 import datetime
 import pandas as pd
-import numpy as np
-from .config import (
-    OT_TIER_1_MAX, OT_TIER_2_MAX, BURNOUT_LATE_CO_MINUTES, BURNOUT_CONSECUTIVE_DAYS,
-    EXCLUDED_EMP_IDS
-)
-from .parse_timesheet import load_attendance_dataset
-from .load_requests import (
-    load_master_entities, load_late_early_requests, load_overtime_requests,
-    load_wfh_requests, load_shift_change_requests, load_leave_applications
-)
+import os
+import sys
+
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    from .config import (
+        OT_TIER_1_MAX, OT_TIER_2_MAX, BURNOUT_LATE_CO_MINUTES, BURNOUT_CONSECUTIVE_DAYS,
+        EXCLUDED_EMP_IDS
+    )
+    from .parse_timesheet import load_attendance_dataset
+    from .load_requests import (
+        load_master_entities, load_late_early_requests, load_overtime_requests,
+        load_wfh_requests, load_shift_change_requests, load_leave_applications
+    )
+except (ImportError, ValueError):
+    from config import (
+        OT_TIER_1_MAX, OT_TIER_2_MAX, BURNOUT_LATE_CO_MINUTES, BURNOUT_CONSECUTIVE_DAYS,
+        EXCLUDED_EMP_IDS
+    )
+    from parse_timesheet import load_attendance_dataset
+    from load_requests import (
+        load_master_entities, load_late_early_requests, load_overtime_requests,
+        load_wfh_requests, load_shift_change_requests, load_leave_applications
+    )
 
 def reconcile_daily_attendance(start_date, end_date):
     """

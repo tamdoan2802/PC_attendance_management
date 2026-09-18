@@ -17,11 +17,25 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
-from .config import DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL
-from .generate_weekly_report import generate_report, get_date_range_from_keyword
-from .core_engine import reconcile_daily_attendance, compute_employee_summary, compute_team_summary, compute_customer_capacity_loss
-from .detect_anomalies import detect_all_anomalies
-from .create_outlook_attendance_draft import create_attendance_email_draft
+# Ensure scripts directory and parent skill directory are in sys.path
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+_SKILL_DIR = os.path.dirname(_SCRIPTS_DIR)
+for _p in [_SCRIPTS_DIR, _SKILL_DIR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+try:
+    from .config import DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL
+    from .generate_weekly_report import generate_report, get_date_range_from_keyword
+    from .core_engine import reconcile_daily_attendance, compute_employee_summary, compute_team_summary, compute_customer_capacity_loss
+    from .detect_anomalies import detect_all_anomalies
+    from .create_outlook_attendance_draft import create_attendance_email_draft
+except (ImportError, ValueError):
+    from config import DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL
+    from generate_weekly_report import generate_report, get_date_range_from_keyword
+    from core_engine import reconcile_daily_attendance, compute_employee_summary, compute_team_summary, compute_customer_capacity_loss
+    from detect_anomalies import detect_all_anomalies
+    from create_outlook_attendance_draft import create_attendance_email_draft
 
 def show_anomalies_only(period_kw='last_week'):
     """Prints only the prioritized anomalies table to console."""
@@ -111,10 +125,16 @@ def launch_dashboard(refresh=True, deploy=True):
     
     if refresh:
         print("\n[+] Regenerating dashboard analytics dataset from raw timesheets & Master Data entities...")
-        from .generate_dashboard_data import main as regen_dash
+        try:
+            from .generate_dashboard_data import main as regen_dash
+        except (ImportError, ValueError):
+            from generate_dashboard_data import main as regen_dash
         regen_dash(deploy=deploy)
     elif deploy:
-        from .generate_dashboard_data import deploy_to_github
+        try:
+            from .generate_dashboard_data import deploy_to_github
+        except (ImportError, ValueError):
+            from generate_dashboard_data import deploy_to_github
         deploy_to_github()
         
     if not reports_html.exists():
@@ -175,7 +195,10 @@ def main():
     elif args.command == 'dashboard':
         launch_dashboard(refresh=not args.no_refresh, deploy=not args.no_deploy)
     elif args.command == 'deploy':
-        from .generate_dashboard_data import deploy_to_github
+        try:
+            from .generate_dashboard_data import deploy_to_github
+        except (ImportError, ValueError):
+            from generate_dashboard_data import deploy_to_github
         deploy_to_github()
     else:
         # Default action: run weekly report

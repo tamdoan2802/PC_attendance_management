@@ -19,8 +19,16 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
-from .config import DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL, SKILL_DIR
-from .generate_weekly_report import generate_report, get_date_range_from_keyword
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+try:
+    from .config import DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL, SKILL_DIR
+    from .generate_weekly_report import generate_report, get_date_range_from_keyword
+except (ImportError, ValueError):
+    from config import DEFAULT_PC_MANAGER_EMAIL, DEFAULT_SENDER_EMAIL, SKILL_DIR
+    from generate_weekly_report import generate_report, get_date_range_from_keyword
 
 def create_attendance_email_draft(date_kw='last_week', to_email=DEFAULT_PC_MANAGER_EMAIL, cc_email=""):
     """
