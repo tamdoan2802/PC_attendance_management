@@ -408,6 +408,10 @@ def load_live_requests(raw):
                 status_flag = 1 if status == "Đã duyệt" else 0
                 wfh_days = pd.to_numeric(r.get("Số ngày làm việc từ xa"), errors="coerce")
                 wfh_days = float(wfh_days) if pd.notna(wfh_days) else 1.0
+                w_reason = r.get("Lý do đăng ký") or r.get("Lý do làm việc từ xa") or r.get("Lý do") or r.get("Ghi chú") or ""
+                w_reason = str(w_reason).strip() if pd.notna(w_reason) else ""
+                if w_reason.lower() in ["nan", "none"]:
+                    w_reason = ""
                 records.append({
                     "Employee_ID": eid,
                     "Employee_Name": str(r.get("Người nộp đơn", "")).strip(),
@@ -416,7 +420,7 @@ def load_live_requests(raw):
                     "WFH_Days": wfh_days,
                     "Status": status,
                     "Status_Flag": status_flag,
-                    "Reason": str(r.get("Lý do làm việc từ xa", "")).strip(),
+                    "Reason": w_reason,
                     "Week Period": date_to_week_period(t_from)
                 })
             if records:
@@ -710,6 +714,15 @@ def preprocess(raw):
         wfh["WFH_From"]    = pd.to_datetime(wfh["WFH_From"], errors="coerce")
         wfh["WFH_To"]      = pd.to_datetime(wfh["WFH_To"],   errors="coerce")
         wfh["Status_Flag"] = pd.to_numeric(wfh["Status_Flag"], errors="coerce").fillna(0).astype(int)
+        if "Reason" not in wfh.columns:
+            for col in ["Lý do đăng ký", "Lý do làm việc từ xa", "Lý do", "Ghi chú"]:
+                if col in wfh.columns:
+                    wfh["Reason"] = wfh[col]
+                    break
+        if "Reason" in wfh.columns:
+            wfh["Reason"] = wfh["Reason"].fillna("").astype(str).str.strip().replace(["nan", "None", "NaN"], "")
+        else:
+            wfh["Reason"] = ""
         if "Week Period" in wfh.columns and not wfh["Week Period"].astype(str).str.strip().replace("", pd.NA).isna().all():
             wfh["Week Period"] = wfh["Week Period"].astype(str).str.strip()
         else:
@@ -1492,7 +1505,7 @@ def build_dash_data(proc, scopes, week_ranges):
             else:
                 w_wk = req_week(wfh, eval_week, "WFH_From")
                 w_sc = req_scope(w_wk, emp_ids, tt); w_app = w_sc[w_sc["Status_Flag"] == 1]; nc = name_col(w_app)
-                wfh_res[sk] = [{"name": str(r.get(nc) or ""), "from": fmt_date(r.get("WFH_From")), "to": fmt_date(r.get("WFH_To")), "reason": str(r.get("Reason", "")), "status": str(r.get("Status", ""))} for _, r in w_app.iterrows()]
+                wfh_res[sk] = [{"name": str(r.get(nc) or r.get("Employee_Name") or ""), "from": fmt_date(r.get("WFH_From")), "to": fmt_date(r.get("WFH_To")), "reason": (str(r.get("Reason", "")).strip() if str(r.get("Reason", "")).strip().lower() not in ["nan", "none"] else ""), "status": str(r.get("Status", ""))} for _, r in w_app.iterrows()]
         ot_details[eval_week] = ot_res
         wfh_details[eval_week] = wfh_res
 
