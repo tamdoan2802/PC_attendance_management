@@ -1298,9 +1298,27 @@ function initCustomerTooltip() {
     document.body.appendChild(tip);
   }
 
+  function positionTooltip(e) {
+    const tipW = tip.offsetWidth || 320;
+    const tipH = tip.offsetHeight || 200;
+    let left = e.clientX + 16;
+    let top = e.clientY + 16;
+
+    if (left + tipW > window.innerWidth - 16) {
+      left = Math.max(10, e.clientX - tipW - 16);
+    }
+    if (top + tipH > window.innerHeight - 16) {
+      top = Math.max(10, e.clientY - tipH - 16);
+    }
+
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
   document.addEventListener('mouseover', function(e) {
     const target = e.target.closest('.cust-tooltip-trigger');
     if (!target) return;
+    if (target.hasAttribute('title')) target.removeAttribute('title');
     const label = target.getAttribute('data-client');
     const key = target.getAttribute('data-key');
     const emps = getCustomerEmployees(label, key);
@@ -1333,6 +1351,7 @@ function initCustomerTooltip() {
     html += `</div>`;
     tip.innerHTML = html;
     tip.style.display = 'block';
+    positionTooltip(e);
     setTimeout(() => { tip.style.opacity = '1'; }, 10);
   });
 
@@ -1340,29 +1359,16 @@ function initCustomerTooltip() {
     const target = e.target.closest('.cust-tooltip-trigger');
     if (!target) return;
     if (tip.style.display !== 'block') return;
-
-    const tipW = tip.offsetWidth || 300;
-    const tipH = tip.offsetHeight || 200;
-    let left = e.clientX + 16;
-    let top = e.clientY + 16;
-
-    if (left + tipW > window.innerWidth - 16) {
-      left = Math.max(10, e.clientX - tipW - 16);
-    }
-    if (top + tipH > window.innerHeight - 16) {
-      top = Math.max(10, e.clientY - tipH - 16);
-    }
-
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
+    positionTooltip(e);
   });
 
   document.addEventListener('mouseout', function(e) {
     const target = e.target.closest('.cust-tooltip-trigger');
-    if (target) {
-      tip.style.opacity = '0';
-      tip.style.display = 'none';
-    }
+    if (!target) return;
+    const rel = e.relatedTarget;
+    if (rel && target.contains(rel)) return;
+    tip.style.opacity = '0';
+    tip.style.display = 'none';
   });
 }
 
@@ -1462,8 +1468,7 @@ function renderLeaveHeatmapCombined(container, curMap, nextMap, rows){
   rowsWithData.forEach(r=>{
     const curCal = curMap[r.key], nextCal = nextMap[r.key];
     const hc = (curCal && curCal.headcount) || (nextCal && nextCal.headcount) || 0;
-    const titleAttr = getCustomerTitleAttr(r.label, r.key, hc);
-    tbody += `<tr><td class="row-head cust-tooltip-trigger" data-client="${escapeHtml(r.label)}" data-key="${escapeHtml(r.key)}" title="${escapeHtml(titleAttr)}">${escapeHtml(r.label)} <span style="color:var(--muted);font-weight:400">(${hc})</span></td>`;
+    tbody += `<tr><td class="row-head cust-tooltip-trigger" data-client="${escapeHtml(r.label)}" data-key="${escapeHtml(r.key)}">${escapeHtml(r.label)} <span style="color:var(--muted);font-weight:400">(${hc})</span></td>`;
     (curCal ? curCal.days : Array(5).fill(null)).forEach(d=>{ tbody += cellHtml(r, d); });
     tbody += '<td class="week-sep"></td>';
     (nextCal ? nextCal.days : Array(5).fill(null)).forEach(d=>{ tbody += cellHtml(r, d); });
@@ -1848,8 +1853,7 @@ function renderADLeaveHeatmap(container, calMap, rows){
   rowsWithData.forEach(r => {
     const cal = calMap[r.key];
     const hc = cal ? cal.headcount : 0;
-    const titleAttr = getCustomerTitleAttr(r.label, r.key, hc);
-    tbody += `<tr><td class="row-head cust-tooltip-trigger" data-client="${escapeHtml(r.label)}" data-key="${escapeHtml(r.key)}" title="${escapeHtml(titleAttr)}">${escapeHtml(r.label)} <span style="color:var(--muted);font-weight:400">(${hc})</span></td>`;
+    tbody += `<tr><td class="row-head cust-tooltip-trigger" data-client="${escapeHtml(r.label)}" data-key="${escapeHtml(r.key)}">${escapeHtml(r.label)} <span style="color:var(--muted);font-weight:400">(${hc})</span></td>`;
     (cal ? cal.days : Array(5).fill(null)).forEach(d => { tbody += cellHtml(r, d); });
     tbody += '</tr>';
   });
