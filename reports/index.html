@@ -193,6 +193,511 @@
   .notice-Unknown{background:var(--surface-2, #F2F1EC);color:var(--muted);}
 
   footer{margin-top:36px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--border);padding-top:14px;}
+
+  /* ========================================================
+     RESPONSIVE & VIEW MODE SWITCHER SYSTEM
+     ======================================================== */
+  .header-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .title-group {
+    flex: 1;
+    min-width: 250px;
+  }
+  .view-mode-switch {
+    display: inline-flex;
+    background: rgba(15, 23, 42, 0.07);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px;
+    gap: 2px;
+    align-items: center;
+  }
+  .v-btn {
+    background: transparent;
+    border: none;
+    border-radius: 16px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1;
+    user-select: none;
+  }
+  .v-btn:hover {
+    color: var(--navy);
+  }
+  .v-btn.active {
+    background: #FFFFFF;
+    color: var(--navy);
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  }
+
+  /* Desktop Simulation Mockup Frame when forced Phone Mode on Desktop */
+  @media (min-width: 769px) {
+    body.view-phone-sim {
+      background: #0F172A;
+      min-height: 100vh;
+      padding: 24px 0 60px;
+    }
+    body.view-phone-sim .app {
+      max-width: 430px;
+      margin: 0 auto;
+      background: var(--bg);
+      border: 10px solid #334155;
+      border-radius: 44px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.1);
+      min-height: 844px;
+      position: relative;
+      overflow: hidden;
+      padding: 12px 14px 85px;
+    }
+    body.view-phone-sim .mobile-bottom-nav {
+      position: fixed !important;
+      bottom: calc(50vh - 422px) !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      width: 410px !important;
+      max-width: 410px !important;
+      border-radius: 0 0 34px 34px !important;
+      box-shadow: none !important;
+    }
+    body.view-phone-sim .sticky-bar {
+      border-radius: 34px 34px 0 0;
+    }
+  }
+
+  /* Mobile Layout Rules */
+  /* 1. When body has class is-phone-view (Phone view active) */
+  body.is-phone-view .app {
+    max-width: 100%;
+    padding: 12px 14px 85px;
+  }
+  body.is-phone-view header {
+    padding: 12px 14px 10px;
+    gap: 12px;
+  }
+  body.is-phone-view h1 {
+    font-size: 18px;
+  }
+  body.is-phone-view .sub {
+    font-size: 11.5px;
+  }
+  body.is-phone-view .controls {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  body.is-phone-view .controls select {
+    width: 100%;
+    min-width: 0;
+    font-size: 13px;
+    padding: 9px 12px;
+    height: 42px;
+    border-radius: 8px;
+  }
+  body.is-phone-view #tabNav {
+    display: none !important;
+  }
+  body.is-phone-view .grid-4,
+  body.is-phone-view .grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px;
+  }
+  body.is-phone-view .grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  body.is-phone-view .card,
+  body.is-phone-view .chart-card,
+  body.is-phone-view .module-card {
+    padding: 13px 14px;
+    border-radius: 10px;
+  }
+  body.is-phone-view .kpi-value {
+    font-size: 21px;
+  }
+  body.is-phone-view .kpi-label {
+    font-size: 11.5px;
+  }
+  body.is-phone-view .kpi-note {
+    font-size: 11px;
+  }
+  body.is-phone-view .kpi-info-btn {
+    padding: 4px;
+    margin: -3px -3px 0 0;
+  }
+  body.is-phone-view .heatmap-scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    margin-bottom: 8px;
+  }
+  body.is-phone-view table.heatmap-table th.row-head,
+  body.is-phone-view table.heatmap-table td.row-head {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: #FFFFFF !important;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.08);
+    min-width: 115px;
+    max-width: 125px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 8px;
+    border-right: 1px solid var(--border);
+  }
+  body.is-phone-view .swipe-hint {
+    display: flex !important;
+  }
+  body.is-phone-view .table-scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  /* 2. Responsive media query for small screens <= 768px (unless forced Web view) */
+  @media (max-width: 768px) {
+    body:not(.view-force-web) .app {
+      max-width: 100%;
+      padding: 12px 14px 85px;
+    }
+    body:not(.view-force-web) header {
+      padding: 12px 14px 10px;
+      gap: 12px;
+    }
+    body:not(.view-force-web) h1 {
+      font-size: 18px;
+    }
+    body:not(.view-force-web) .sub {
+      font-size: 11.5px;
+    }
+    body:not(.view-force-web) .controls {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 8px;
+    }
+    body:not(.view-force-web) .controls select {
+      width: 100%;
+      min-width: 0;
+      font-size: 13px;
+      padding: 9px 12px;
+      height: 42px;
+      border-radius: 8px;
+    }
+    body:not(.view-force-web) #tabNav {
+      display: none !important;
+    }
+    body:not(.view-force-web) .grid-4,
+    body:not(.view-force-web) .grid-3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 10px;
+    }
+    body:not(.view-force-web) .grid-2 {
+      grid-template-columns: 1fr !important;
+      gap: 12px;
+    }
+    body:not(.view-force-web) .card,
+    body:not(.view-force-web) .chart-card,
+    body:not(.view-force-web) .module-card {
+      padding: 13px 14px;
+      border-radius: 10px;
+    }
+    body:not(.view-force-web) .kpi-value {
+      font-size: 21px;
+    }
+    body:not(.view-force-web) .kpi-label {
+      font-size: 11.5px;
+    }
+    body:not(.view-force-web) .kpi-note {
+      font-size: 11px;
+    }
+    body:not(.view-force-web) .kpi-info-btn {
+      padding: 4px;
+      margin: -3px -3px 0 0;
+    }
+    body:not(.view-force-web) .heatmap-scroll-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 8px;
+    }
+    body:not(.view-force-web) table.heatmap-table th.row-head,
+    body:not(.view-force-web) table.heatmap-table td.row-head {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      background: #FFFFFF !important;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.08);
+      min-width: 115px;
+      max-width: 125px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-left: 8px;
+      border-right: 1px solid var(--border);
+    }
+    body:not(.view-force-web) .swipe-hint {
+      display: flex !important;
+    }
+    body:not(.view-force-web) .table-scroll-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+  }
+
+  .swipe-hint {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 6px 10px;
+    background: rgba(31, 56, 100, 0.06);
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+
+  /* ========================================================
+     BOTTOM NAVIGATION BAR
+     ======================================================== */
+  .mobile-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.06);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  body.is-phone-view .mobile-bottom-nav {
+    display: flex;
+  }
+  @media (max-width: 768px) {
+    body:not(.view-force-web) .mobile-bottom-nav {
+      display: flex;
+    }
+  }
+
+  .mob-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 5px 2px;
+    cursor: pointer;
+    color: #64748B;
+    transition: all 0.15s ease;
+    position: relative;
+    min-width: 0;
+  }
+  .mob-nav-btn:hover {
+    color: var(--navy);
+  }
+  .mob-nav-btn.active {
+    color: var(--navy);
+  }
+  .mob-nav-btn .nav-icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-bottom: 3px;
+    display: block;
+  }
+  .mob-nav-btn .nav-label {
+    font-size: 10.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  .mob-nav-btn.active .nav-label {
+    font-weight: 700;
+  }
+  .mob-nav-btn .nav-indicator {
+    position: absolute;
+    top: 1px;
+    width: 16px;
+    height: 3px;
+    background: var(--navy);
+    border-radius: 2px;
+    display: none;
+  }
+  .mob-nav-btn.active .nav-indicator {
+    display: block;
+  }
+
+  /* ========================================================
+     MOBILE MORE SHEET & BOTTOM SHEET TOOLTIPS
+     ======================================================== */
+  .mobile-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999998;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .mobile-sheet-backdrop.show {
+    display: block;
+    opacity: 1;
+  }
+
+  .mobile-more-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999999;
+    background: #FFFFFF;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.25);
+    padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: none;
+  }
+  .mobile-more-sheet.show {
+    display: block;
+    transform: translateY(0);
+  }
+  .sheet-drag-handle {
+    width: 40px;
+    height: 4px;
+    background: #CBD5E1;
+    border-radius: 3px;
+    margin: 0 auto 16px;
+  }
+  .sheet-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .sheet-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0;
+  }
+  .sheet-close-btn {
+    background: #F1F5F9;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748B;
+    cursor: pointer;
+  }
+  .more-sheet-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .more-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #F8FAFC;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--slate);
+    transition: all 0.15s ease;
+  }
+  .more-sheet-item:hover, .more-sheet-item.active {
+    background: var(--blue-tint);
+    border-color: #93C5FD;
+    color: var(--navy);
+  }
+
+  /* Bottom Sheet Mode for Tooltips on Mobile */
+  body.is-phone-view #cust-floating-tooltip,
+  body.is-phone-view #kpi-floating-tooltip {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 16px 18px calc(18px + env(safe-area-inset-bottom, 10px)) !important;
+    box-shadow: 0 -12px 35px rgba(0,0,0,0.35) !important;
+    transform: translateY(100%) !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+    max-height: 78vh !important;
+    z-index: 999999 !important;
+  }
+  body.is-phone-view #cust-floating-tooltip.show,
+  body.is-phone-view #kpi-floating-tooltip.show {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+  }
+  @media (max-width: 768px) {
+    body:not(.view-force-web) #cust-floating-tooltip,
+    body:not(.view-force-web) #kpi-floating-tooltip {
+      position: fixed !important;
+      top: auto !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      border-radius: 20px 20px 0 0 !important;
+      padding: 16px 18px calc(18px + env(safe-area-inset-bottom, 10px)) !important;
+      box-shadow: 0 -12px 35px rgba(0,0,0,0.35) !important;
+      transform: translateY(100%) !important;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+      max-height: 78vh !important;
+      z-index: 999999 !important;
+    }
+    body:not(.view-force-web) #cust-floating-tooltip.show,
+    body:not(.view-force-web) #kpi-floating-tooltip.show {
+      transform: translateY(0) !important;
+      opacity: 1 !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -200,14 +705,21 @@
 
 <div class="sticky-bar">
   <header>
-    <div>
-      <h1>Workforce Attendance Dashboard</h1>
-      <div class="sub">Current week: <span id="curWeekLabel"></span> &middot; source: Raw MISA Timesheets &amp; Entities Master Data</div>
+    <div class="header-main">
+      <div class="title-group">
+        <h1>Workforce Attendance Dashboard</h1>
+        <div class="sub">Current week: <span id="curWeekLabel"></span> &middot; source: Raw MISA Timesheets &amp; Entities Master Data</div>
+      </div>
+      <div class="view-mode-switch" id="viewModeSwitch" role="group" aria-label="Chế độ xem">
+        <button type="button" class="v-btn" data-mode="auto" title="Tự động theo màn hình">🔄 Auto</button>
+        <button type="button" class="v-btn" data-mode="web" title="Chế độ máy tính (Web)">💻 Web</button>
+        <button type="button" class="v-btn" data-mode="phone" title="Chế độ điện thoại (Phone)">📱 Phone</button>
+      </div>
     </div>
     <div class="controls">
-      <select id="masterWeekFilter"></select>
-      <select id="clientFilter"></select>
-      <select id="teamFilter"></select>
+      <select id="masterWeekFilter" aria-label="Chọn tuần"></select>
+      <select id="clientFilter" aria-label="Chọn khách hàng"></select>
+      <select id="teamFilter" aria-label="Chọn phòng ban"></select>
     </div>
   </header>
 
@@ -379,6 +891,68 @@
   </footer>
 </div>
 
+<!-- Mobile Bottom Navigation Bar -->
+<nav id="mobileBottomNav" class="mobile-bottom-nav">
+  <button type="button" class="mob-nav-btn active" data-tab="overview">
+    <span class="nav-indicator"></span>
+    <span class="nav-icon">📊</span>
+    <span class="nav-label">Overview</span>
+  </button>
+  <button type="button" class="mob-nav-btn" data-tab="attendance">
+    <span class="nav-indicator"></span>
+    <span class="nav-icon">⏱️</span>
+    <span class="nav-label">Quality</span>
+  </button>
+  <button type="button" class="mob-nav-btn" data-tab="leave">
+    <span class="nav-indicator"></span>
+    <span class="nav-icon">🏖️</span>
+    <span class="nav-label">Leave</span>
+  </button>
+  <button type="button" class="mob-nav-btn" data-tab="otwfh">
+    <span class="nav-indicator"></span>
+    <span class="nav-icon">⚡</span>
+    <span class="nav-label">OT &amp; WFH</span>
+  </button>
+  <button type="button" class="mob-nav-btn" data-tab="ops">
+    <span class="nav-indicator"></span>
+    <span class="nav-icon">📑</span>
+    <span class="nav-label">Requests</span>
+  </button>
+  <button type="button" class="mob-nav-btn" data-tab="more">
+    <span class="nav-indicator"></span>
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label">Khác</span>
+  </button>
+</nav>
+
+<!-- Mobile More Sheet (Drawer for Secondary Tabs) -->
+<div id="mobileMoreSheet" class="mobile-more-sheet">
+  <div class="sheet-drag-handle"></div>
+  <div class="sheet-title-row">
+    <h3 class="sheet-title">Chức năng &amp; Báo cáo khác</h3>
+    <button type="button" class="sheet-close-btn" aria-label="Đóng">✕</button>
+  </div>
+  <div class="more-sheet-items">
+    <div class="more-sheet-item" data-tab="attendancedash">
+      <span style="font-size:20px;">🎯</span>
+      <div>
+        <div style="font-size:14px;font-weight:600;">Attendance Dashboard</div>
+        <div style="font-size:11.5px;color:var(--muted);font-weight:normal;">Weekly Horizon &amp; Burnout Watchlist</div>
+      </div>
+    </div>
+    <div class="more-sheet-item" data-tab="risk">
+      <span style="font-size:20px;">⚠️</span>
+      <div>
+        <div style="font-size:14px;font-weight:600;">Risk &amp; Compliance</div>
+        <div style="font-size:11.5px;color:var(--muted);font-weight:normal;">Tất cả cảnh báo rủi ro &amp; vi phạm</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backdrop Overlay for Mobile Sheets & Tooltips -->
+<div id="mobileSheetBackdrop" class="mobile-sheet-backdrop"></div>
+
 <script>
 let D = {};
 let teamScope = 'All Teams';
@@ -443,6 +1017,8 @@ function initUI() {
   });
   initCustomerTooltip();
   initKpiTooltip();
+  initViewModeController();
+  initMobileBottomNav();
 }
 
 const TABS = [
@@ -465,10 +1041,159 @@ TABS.forEach((t,i)=>{
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     el.classList.add('active');
     document.getElementById('page-'+t.id).classList.add('active');
+    if (typeof syncBottomNavWithTab === 'function') {
+      syncBottomNavWithTab(t.id);
+    }
   });
   nav.appendChild(el);
 });
 document.getElementById('page-overview').classList.add('active');
+
+// ========================================================
+// VIEW MODE CONTROLLER & BOTTOM NAVIGATION
+// ========================================================
+let currentViewMode = localStorage.getItem('dashboard_view_mode') || 'auto';
+
+function setViewMode(mode) {
+  currentViewMode = mode;
+  try { localStorage.setItem('dashboard_view_mode', mode); } catch(e){}
+
+  document.querySelectorAll('#viewModeSwitch .v-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+
+  const isSmallScreen = window.innerWidth <= 768;
+  const isPhone = mode === 'phone' || (mode === 'auto' && isSmallScreen);
+
+  document.body.classList.toggle('is-phone-view', isPhone);
+  document.body.classList.toggle('view-phone-sim', mode === 'phone' && !isSmallScreen);
+  document.body.classList.toggle('view-force-web', mode === 'web');
+
+  // Trigger chart resize if layout shifted
+  if (typeof charts === 'object') {
+    Object.values(charts).forEach(ch => {
+      if (ch && typeof ch.resize === 'function') {
+        try { ch.resize(); } catch(err){}
+      }
+    });
+  }
+}
+
+function initViewModeController() {
+  const switchEl = document.getElementById('viewModeSwitch');
+  if (switchEl) {
+    switchEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.v-btn');
+      if (btn && btn.dataset.mode) {
+        setViewMode(btn.dataset.mode);
+      }
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    if (currentViewMode === 'auto') {
+      setViewMode('auto');
+    }
+  });
+
+  setViewMode(currentViewMode);
+}
+
+function syncBottomNavWithTab(tabId) {
+  const directTabs = ['overview', 'attendance', 'leave', 'otwfh', 'ops'];
+  const isDirect = directTabs.includes(tabId);
+  document.querySelectorAll('.mob-nav-btn').forEach(btn => {
+    if (isDirect) {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    } else {
+      btn.classList.toggle('active', btn.dataset.tab === 'more');
+    }
+  });
+  document.querySelectorAll('.more-sheet-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.tab === tabId);
+  });
+}
+
+function initMobileBottomNav() {
+  const bottomNav = document.getElementById('mobileBottomNav');
+  const moreSheet = document.getElementById('mobileMoreSheet');
+  const backdrop = document.getElementById('mobileSheetBackdrop');
+  if (!bottomNav) return;
+
+  function switchTab(tabId) {
+    closeMoreSheet();
+
+    document.querySelectorAll('.tab').forEach(x => {
+      x.classList.toggle('active', x.dataset.tab === tabId);
+    });
+
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    const page = document.getElementById('page-' + tabId);
+    if (page) page.classList.add('active');
+
+    syncBottomNavWithTab(tabId);
+
+    // Smoothly scroll back to top of viewport
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openMoreSheet() {
+    if (moreSheet && backdrop) {
+      moreSheet.style.display = 'block';
+      backdrop.style.display = 'block';
+      requestAnimationFrame(() => {
+        moreSheet.classList.add('show');
+        backdrop.classList.add('show');
+      });
+    }
+  }
+
+  function closeMoreSheet() {
+    if (moreSheet && backdrop) {
+      moreSheet.classList.remove('show');
+      backdrop.classList.remove('show');
+      setTimeout(() => {
+        moreSheet.style.display = 'none';
+        if (!document.querySelector('#cust-floating-tooltip.show') && !document.querySelector('#kpi-floating-tooltip.show')) {
+          backdrop.style.display = 'none';
+        }
+      }, 200);
+    }
+  }
+
+  bottomNav.addEventListener('click', (e) => {
+    const btn = e.target.closest('.mob-nav-btn');
+    if (!btn) return;
+    const tab = btn.dataset.tab;
+    if (tab === 'more') {
+      openMoreSheet();
+    } else {
+      switchTab(tab);
+    }
+  });
+
+  if (moreSheet) {
+    moreSheet.addEventListener('click', (e) => {
+      const item = e.target.closest('.more-sheet-item');
+      if (item && item.dataset.tab) {
+        switchTab(item.dataset.tab);
+      }
+      if (e.target.closest('.sheet-close-btn')) {
+        closeMoreSheet();
+      }
+    });
+  }
+
+  if (backdrop) {
+    backdrop.addEventListener('click', () => {
+      closeMoreSheet();
+      const custTip = document.getElementById('cust-floating-tooltip');
+      const kpiTip = document.getElementById('kpi-floating-tooltip');
+      if (custTip) { custTip.classList.remove('show'); custTip.style.display = 'none'; }
+      if (kpiTip) { kpiTip.classList.remove('show'); kpiTip.style.display = 'none'; }
+    });
+  }
+}
 
 // ---------- helpers ----------
 function last(arr){ return arr[weekIndex]; }
@@ -976,6 +1701,13 @@ function initKpiTooltip() {
     const info = KPI_METRICS_INFO[key];
     if (!info) return;
 
+    const isMobileMode = document.body.classList.contains('is-phone-view') || window.innerWidth <= 768;
+    const backdrop = document.getElementById('mobileSheetBackdrop');
+    if (isMobileMode && backdrop) {
+      backdrop.style.display = 'block';
+      requestAnimationFrame(() => backdrop.classList.add('show'));
+    }
+
     if (activeBtn && activeBtn !== btn) {
       activeBtn.classList.remove('active');
     }
@@ -983,8 +1715,14 @@ function initKpiTooltip() {
     btn.classList.add('active');
     if (pin) pinnedBtn = btn;
 
+    const mobileSheetHead = isMobileMode ? `
+      <div class="sheet-drag-handle" style="background:#475569;margin-bottom:12px;"></div>
+      <button type="button" class="kpi-sheet-close" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;z-index:2;">✕</button>
+    ` : '';
+
     tip.innerHTML = `
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.14);padding-bottom:7px;">
+      ${mobileSheetHead}
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.14);padding-bottom:7px;${isMobileMode?'padding-right:32px;':''}">
         <div>
           <div style="font-weight:700;font-size:13px;color:#F8FAFC;display:flex;align-items:center;gap:6px;">
             <span style="color:${info.color||'#60A5FA'};font-size:14px;line-height:1;">●</span>
@@ -1012,22 +1750,24 @@ function initKpiTooltip() {
 
     tip.style.display = 'block';
 
-    const rect = btn.getBoundingClientRect();
-    const tipW = Math.min(340, window.innerWidth - 24);
-    tip.style.width = tipW + 'px';
-    const tipH = tip.offsetHeight || 220;
+    if (!isMobileMode) {
+      const rect = btn.getBoundingClientRect();
+      const tipW = Math.min(340, window.innerWidth - 24);
+      tip.style.width = tipW + 'px';
+      const tipH = tip.offsetHeight || 220;
 
-    let left = rect.left + (rect.width / 2) - (tipW / 2);
-    if (left < 12) left = 12;
-    if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
+      let left = rect.left + (rect.width / 2) - (tipW / 2);
+      if (left < 12) left = 12;
+      if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
 
-    let top = rect.top - tipH - 8;
-    if (top < 10) {
-      top = rect.bottom + 8;
+      let top = rect.top - tipH - 8;
+      if (top < 10) {
+        top = rect.bottom + 8;
+      }
+
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
     }
-
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
 
     requestAnimationFrame(() => {
       tip.classList.add('show');
@@ -1037,6 +1777,7 @@ function initKpiTooltip() {
   function hideTooltip(force = false) {
     if (!force && pinnedBtn) return;
     if (hideTimer) clearTimeout(hideTimer);
+    const delay = force ? 0 : 100;
     hideTimer = setTimeout(() => {
       if (activeBtn) {
         activeBtn.classList.remove('active');
@@ -1044,11 +1785,26 @@ function initKpiTooltip() {
       }
       pinnedBtn = null;
       tip.classList.remove('show');
+      const backdrop = document.getElementById('mobileSheetBackdrop');
+      if (backdrop) {
+        backdrop.classList.remove('show');
+        setTimeout(() => {
+          if (!document.querySelector('.mobile-more-sheet.show') && !document.querySelector('#cust-floating-tooltip.show') && !tip.classList.contains('show')) {
+            backdrop.style.display = 'none';
+          }
+        }, 150);
+      }
       setTimeout(() => {
         if (!activeBtn) tip.style.display = 'none';
       }, 150);
     }, 100);
   }
+
+  tip.addEventListener('click', (e) => {
+    if (e.target.closest('.kpi-sheet-close')) {
+      hideTooltip(true);
+    }
+  });
 
   tip.addEventListener('mouseenter', () => {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -1160,7 +1916,10 @@ function renderGenericTable(container, headers, rows, emptyMsg){
   const table = document.createElement('table');
   table.className = 'incident-table';
   table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
-  container.appendChild(table);
+  const wrap = document.createElement('div');
+  wrap.className = 'table-scroll-wrap';
+  wrap.appendChild(table);
+  container.appendChild(wrap);
 }
 
 Chart.register(ChartDataLabels);
@@ -1335,8 +2094,21 @@ function initCustomerTooltip() {
 
     activeTarget = target;
 
+    const isMobileMode = document.body.classList.contains('is-phone-view') || window.innerWidth <= 768;
+    const backdrop = document.getElementById('mobileSheetBackdrop');
+    if (isMobileMode && backdrop) {
+      backdrop.style.display = 'block';
+      requestAnimationFrame(() => backdrop.classList.add('show'));
+    }
+
+    const mobileSheetHead = isMobileMode ? `
+      <div class="sheet-drag-handle" style="background:#475569;margin-bottom:12px;"></div>
+      <button type="button" class="cust-sheet-close" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;z-index:2;">✕</button>
+    ` : '';
+
     let html = `
-      <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.18);padding-bottom:6px;">
+      ${mobileSheetHead}
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.18);padding-bottom:6px;${isMobileMode?'padding-right:32px;':''}">
         <span style="color:#60A5FA;display:flex;align-items:center;gap:6px;">🏢 ${escapeHtml(label)}</span>
         <span style="font-size:11px;font-weight:600;background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:10px;color:#E2E8F0;">${emps.length} nhân sự</span>
       </div>
@@ -1363,25 +2135,27 @@ function initCustomerTooltip() {
     tip.innerHTML = html;
     tip.style.display = 'block';
 
-    const rect = target.getBoundingClientRect();
-    const tipW = Math.min(350, window.innerWidth - 28);
-    tip.style.width = tipW + 'px';
-    const tipH = tip.offsetHeight || 260;
+    if (!isMobileMode) {
+      const rect = target.getBoundingClientRect();
+      const tipW = Math.min(350, window.innerWidth - 28);
+      tip.style.width = tipW + 'px';
+      const tipH = tip.offsetHeight || 260;
 
-    // Anchor adjacent to target row with small margin
-    let left = rect.right + 6;
-    if (left + tipW > window.innerWidth - 14) {
-      left = Math.max(12, rect.left - tipW - 6);
+      // Anchor adjacent to target row with small margin
+      let left = rect.right + 6;
+      if (left + tipW > window.innerWidth - 14) {
+        left = Math.max(12, rect.left - tipW - 6);
+      }
+
+      let top = rect.top - 6;
+      if (top + tipH > window.innerHeight - 12) {
+        top = Math.max(10, window.innerHeight - tipH - 12);
+      }
+      if (top < 10) top = 10;
+
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
     }
-
-    let top = rect.top - 6;
-    if (top + tipH > window.innerHeight - 12) {
-      top = Math.max(10, window.innerHeight - tipH - 12);
-    }
-    if (top < 10) top = 10;
-
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
 
     requestAnimationFrame(() => {
       tip.classList.add('show');
@@ -1394,11 +2168,38 @@ function initCustomerTooltip() {
     hideTimer = setTimeout(() => {
       activeTarget = null;
       tip.classList.remove('show');
+      const backdrop = document.getElementById('mobileSheetBackdrop');
+      if (backdrop) {
+        backdrop.classList.remove('show');
+        setTimeout(() => {
+          if (!document.querySelector('.mobile-more-sheet.show') && !document.querySelector('#kpi-floating-tooltip.show') && !tip.classList.contains('show')) {
+            backdrop.style.display = 'none';
+          }
+        }, 150);
+      }
       setTimeout(() => {
         if (!activeTarget && !pinnedTarget) tip.style.display = 'none';
       }, 150);
     }, 280); // 280ms grace period so user can comfortably move cursor into tooltip
   }
+
+  tip.addEventListener('click', (e) => {
+    if (e.target.closest('.cust-sheet-close')) {
+      pinnedTarget = null;
+      activeTarget = null;
+      tip.classList.remove('show');
+      const backdrop = document.getElementById('mobileSheetBackdrop');
+      if (backdrop) {
+        backdrop.classList.remove('show');
+        setTimeout(() => {
+          if (!document.querySelector('.mobile-more-sheet.show') && !document.querySelector('#kpi-floating-tooltip.show')) {
+            backdrop.style.display = 'none';
+          }
+        }, 150);
+      }
+      setTimeout(() => { tip.style.display = 'none'; }, 150);
+    }
+  });
 
   // When mouse enters tooltip card, cancel hide timer so it stays open!
   tip.addEventListener('mouseenter', () => {
@@ -1571,10 +2372,18 @@ function renderLeaveHeatmapCombined(container, curMap, nextMap, rows){
     tbody += '</tr>';
   });
 
+  const hint = document.createElement('div');
+  hint.className = 'swipe-hint';
+  hint.innerHTML = '<span>👉</span><span>Vuốt ngang để xem các ngày trong tuần (Mon - Fri)</span>';
+  container.appendChild(hint);
+
   const table = document.createElement('table');
   table.className = 'heatmap-table';
   table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
-  container.appendChild(table);
+  const wrap = document.createElement('div');
+  wrap.className = 'heatmap-scroll-wrap';
+  wrap.appendChild(table);
+  container.appendChild(wrap);
 
   const legend = document.createElement('div');
   legend.className = 'heat-legend';
@@ -1954,10 +2763,18 @@ function renderADLeaveHeatmap(container, calMap, rows){
     tbody += '</tr>';
   });
 
+  const hint = document.createElement('div');
+  hint.className = 'swipe-hint';
+  hint.innerHTML = '<span>👉</span><span>Vuốt ngang để xem các ngày trong tuần (Mon - Fri)</span>';
+  container.appendChild(hint);
+
   const table = document.createElement('table');
   table.className = 'heatmap-table';
   table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
-  container.appendChild(table);
+  const wrap = document.createElement('div');
+  wrap.className = 'heatmap-scroll-wrap';
+  wrap.appendChild(table);
+  container.appendChild(wrap);
 }
 
 function renderAttendanceDashboard() {
