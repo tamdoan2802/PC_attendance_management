@@ -116,23 +116,42 @@
 
   #cust-floating-tooltip{
     position:fixed;
-    z-index:99999;
-    pointer-events:none;
+    z-index:999999;
+    pointer-events:auto;
     background:rgba(15, 23, 42, 0.96);
-    backdrop-filter:blur(8px);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
     color:#F8FAFC;
-    border:1px solid rgba(255, 255, 255, 0.15);
+    border:1px solid rgba(255, 255, 255, 0.16);
     border-radius:10px;
-    padding:12px 16px;
+    padding:13px 15px;
     box-shadow:0 20px 25px -5px rgba(0,0,0,0.5), 0 10px 10px -5px rgba(0,0,0,0.3);
     font-size:12px;
-    max-width:380px;
-    max-height:380px;
-    overflow-y:auto;
+    width:350px;
+    max-width:calc(100vw - 28px);
     display:none;
     opacity:0;
-    transition:opacity 0.15s ease-out;
-    line-height:1.4;
+    transition:opacity 0.15s ease-out, transform 0.15s ease-out;
+    transform:translateY(4px);
+    line-height:1.45;
+  }
+  #cust-floating-tooltip.show{
+    opacity:1;
+    transform:translateY(0);
+  }
+  #cust-floating-tooltip ::-webkit-scrollbar{
+    width:6px;
+  }
+  #cust-floating-tooltip ::-webkit-scrollbar-track{
+    background:rgba(255,255,255,0.08);
+    border-radius:4px;
+  }
+  #cust-floating-tooltip ::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,0.35);
+    border-radius:4px;
+  }
+  #cust-floating-tooltip ::-webkit-scrollbar-thumb:hover{
+    background:rgba(255,255,255,0.55);
   }
   #kpi-floating-tooltip{
     position:fixed;
@@ -1298,38 +1317,30 @@ function initCustomerTooltip() {
     document.body.appendChild(tip);
   }
 
-  function positionTooltip(e) {
-    const tipW = tip.offsetWidth || 320;
-    const tipH = tip.offsetHeight || 200;
-    let left = e.clientX + 16;
-    let top = e.clientY + 16;
+  let activeTarget = null;
+  let pinnedTarget = null;
+  let hideTimer = null;
 
-    if (left + tipW > window.innerWidth - 16) {
-      left = Math.max(10, e.clientX - tipW - 16);
+  function showTooltip(target) {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
     }
-    if (top + tipH > window.innerHeight - 16) {
-      top = Math.max(10, e.clientY - tipH - 16);
-    }
-
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
-  }
-
-  document.addEventListener('mouseover', function(e) {
-    const target = e.target.closest('.cust-tooltip-trigger');
-    if (!target) return;
     if (target.hasAttribute('title')) target.removeAttribute('title');
+
     const label = target.getAttribute('data-client');
     const key = target.getAttribute('data-key');
     const emps = getCustomerEmployees(label, key);
     if (!emps || emps.length === 0) return;
 
+    activeTarget = target;
+
     let html = `
       <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.18);padding-bottom:6px;">
-        <span style="color:#60A5FA;">🏢 ${escapeHtml(label)}</span>
+        <span style="color:#60A5FA;display:flex;align-items:center;gap:6px;">🏢 ${escapeHtml(label)}</span>
         <span style="font-size:11px;font-weight:600;background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:10px;color:#E2E8F0;">${emps.length} nhân sự</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;padding-right:4px;">
+      <div class="cust-tooltip-scroll" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;padding-right:4px;">
     `;
 
     emps.forEach(emp => {
@@ -1351,24 +1362,109 @@ function initCustomerTooltip() {
     html += `</div>`;
     tip.innerHTML = html;
     tip.style.display = 'block';
-    positionTooltip(e);
-    setTimeout(() => { tip.style.opacity = '1'; }, 10);
+
+    const rect = target.getBoundingClientRect();
+    const tipW = Math.min(350, window.innerWidth - 28);
+    tip.style.width = tipW + 'px';
+    const tipH = tip.offsetHeight || 260;
+
+    // Anchor adjacent to target row with small margin
+    let left = rect.right + 6;
+    if (left + tipW > window.innerWidth - 14) {
+      left = Math.max(12, rect.left - tipW - 6);
+    }
+
+    let top = rect.top - 6;
+    if (top + tipH > window.innerHeight - 12) {
+      top = Math.max(10, window.innerHeight - tipH - 12);
+    }
+    if (top < 10) top = 10;
+
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+
+    requestAnimationFrame(() => {
+      tip.classList.add('show');
+    });
+  }
+
+  function scheduleHide() {
+    if (pinnedTarget) return;
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      activeTarget = null;
+      tip.classList.remove('show');
+      setTimeout(() => {
+        if (!activeTarget && !pinnedTarget) tip.style.display = 'none';
+      }, 150);
+    }, 280); // 280ms grace period so user can comfortably move cursor into tooltip
+  }
+
+  // When mouse enters tooltip card, cancel hide timer so it stays open!
+  tip.addEventListener('mouseenter', () => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
   });
 
-  document.addEventListener('mousemove', function(e) {
+  // When mouse leaves tooltip card, schedule hide
+  tip.addEventListener('mouseleave', () => {
+    scheduleHide();
+  });
+
+  // Mouse events on target trigger cells
+  document.addEventListener('mouseover', function(e) {
     const target = e.target.closest('.cust-tooltip-trigger');
-    if (!target) return;
-    if (tip.style.display !== 'block') return;
-    positionTooltip(e);
+    if (target) {
+      if (pinnedTarget && pinnedTarget !== target) {
+        pinnedTarget = null;
+      }
+      showTooltip(target);
+    }
   });
 
   document.addEventListener('mouseout', function(e) {
     const target = e.target.closest('.cust-tooltip-trigger');
     if (!target) return;
     const rel = e.relatedTarget;
-    if (rel && target.contains(rel)) return;
-    tip.style.opacity = '0';
-    tip.style.display = 'none';
+    if (rel && (target.contains(rel) || tip.contains(rel))) return;
+    scheduleHide();
+  });
+
+  // Click on customer cell to pin/toggle
+  document.addEventListener('click', function(e) {
+    const target = e.target.closest('.cust-tooltip-trigger');
+    if (target) {
+      e.stopPropagation();
+      if (pinnedTarget === target && tip.classList.contains('show')) {
+        pinnedTarget = null;
+        scheduleHide();
+      } else {
+        pinnedTarget = target;
+        showTooltip(target);
+      }
+      return;
+    }
+    // Click outside closes tooltip
+    if (tip && !tip.contains(e.target)) {
+      pinnedTarget = null;
+      if (hideTimer) clearTimeout(hideTimer);
+      activeTarget = null;
+      tip.classList.remove('show');
+      setTimeout(() => { tip.style.display = 'none'; }, 150);
+    }
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      pinnedTarget = null;
+      if (hideTimer) clearTimeout(hideTimer);
+      activeTarget = null;
+      tip.classList.remove('show');
+      tip.style.display = 'none';
+    }
   });
 }
 
