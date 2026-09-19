@@ -698,6 +698,449 @@
       opacity: 1 !important;
     }
   }
+
+  /* ========================================================
+     ATTENDANCE DASHBOARD (MOBILE-FIRST POLISHED UI)
+     ======================================================== */
+  .ad-section-box {
+    background: #FFFFFF;
+    border: 1px solid #D8E2ED;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  }
+
+  .ad-today-box {
+    background: linear-gradient(180deg, #F0F6FC 0%, #FFFFFF 100%);
+    border: 1px solid #BCD0E6;
+  }
+
+  .ad-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .ad-section-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--navy-light);
+    margin-bottom: 2px;
+  }
+
+  .ad-section-heading {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ad-date-nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ad-btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #334155;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ad-btn-icon:hover {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+  }
+
+  .ad-btn-today {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ad-btn-today:hover, .ad-btn-today.active {
+    background: var(--navy);
+    color: #FFFFFF;
+    border-color: var(--navy);
+  }
+
+  .ad-date-select {
+    height: 32px;
+    padding: 0 8px;
+    font-size: 12.5px;
+    border-radius: 8px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #1E293B;
+    min-width: 120px;
+  }
+
+  /* 5-Day Week Strip */
+  .ad-week-day-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 2px 10px;
+    margin-bottom: 8px;
+    scrollbar-width: none;
+  }
+  .ad-week-day-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ad-day-chip {
+    flex: 1;
+    min-width: 64px;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 10px;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .ad-day-chip:hover {
+    border-color: #94A3B8;
+    background: #F8FAFC;
+  }
+  .ad-day-chip.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: #FFFFFF;
+    box-shadow: 0 3px 8px rgba(31, 56, 100, 0.25);
+  }
+  .ad-day-chip .chip-dow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .ad-day-chip .chip-date {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 2px 0;
+  }
+  .ad-day-chip .chip-count {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #EFF6FF;
+    color: #1D4ED8;
+  }
+  .ad-day-chip.active .chip-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
+  }
+  .ad-day-chip .chip-count.has-urgent {
+    background: #FEE2E2;
+    color: #DC2626;
+  }
+  .ad-day-chip.active .chip-count.has-urgent {
+    background: #DC2626;
+    color: #FFFFFF;
+  }
+
+  /* Summary Pills */
+  .ad-summary-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .ad-sum-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 14px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .ad-sum-pill.pill-total { background: #E0E7FF; color: #3730A3; }
+  .ad-sum-pill.pill-urgent { background: #FCEBEB; color: #991B1B; border: 1px solid #F87171; }
+  .ad-sum-pill.pill-unplanned { background: #FEF3C7; color: #92400E; }
+  .ad-sum-pill.pill-planned { background: #DCFCE7; color: #166534; }
+  .ad-sum-pill.pill-cust { background: #F1F5F9; color: #475569; }
+
+  /* Absent Cards List */
+  .ad-absent-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 10px;
+  }
+
+  .ad-absent-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left-width: 4px;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ad-absent-card.cat-urgent {
+    border-left-color: #DC2626;
+    background: linear-gradient(90deg, #FEF2F2 0%, #FFFFFF 18%);
+  }
+  .ad-absent-card.cat-unplanned {
+    border-left-color: #D97706;
+    background: linear-gradient(90deg, #FFFBEB 0%, #FFFFFF 18%);
+  }
+  .ad-absent-card.cat-planned {
+    border-left-color: #16A34A;
+    background: linear-gradient(90deg, #F0FDF4 0%, #FFFFFF 18%);
+  }
+
+  .ad-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ad-card-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .cat-urgent .ad-card-avatar { background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; }
+  .cat-unplanned .ad-card-avatar { background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; }
+  .cat-planned .ad-card-avatar { background: #DCFCE7; color: #16A34A; border: 1px solid #86EFAC; }
+
+  .ad-card-meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .ad-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0F172A;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ad-card-sub {
+    font-size: 11.5px;
+    color: #64748B;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ad-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+  .ad-badge.badge-urgent { background: #FCEBEB; color: #DC2626; border: 1px solid #FCA5A5; }
+  .ad-badge.badge-unplanned { background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; }
+  .ad-badge.badge-planned { background: #DCFCE7; color: #16A34A; border: 1px solid #86EFAC; }
+
+  .ad-card-reason {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 12.5px;
+    color: #1E293B;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    line-height: 1.4;
+  }
+  .ad-card-reason .reason-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Week navigation toolbar & pills */
+  .ad-week-nav-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .ad-nav-pill {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ad-nav-pill:hover, .ad-nav-pill.active {
+    background: var(--navy);
+    color: #FFFFFF;
+    border-color: var(--navy);
+  }
+
+  .ad-current-week-banner {
+    background: rgba(31, 56, 100, 0.05);
+    border: 1px solid #D8E2ED;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--navy);
+    margin-bottom: 10px;
+  }
+
+  /* Mobile card view for leaves & burnout */
+  .ad-leave-card-item, .ad-late-card-item {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .ad-leave-card-top, .ad-late-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .ad-leave-card-name, .ad-late-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .ad-leave-card-details, .ad-late-card-details {
+    font-size: 12px;
+    color: #475569;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .ad-leave-card-reason {
+    font-size: 12px;
+    color: #1E293B;
+    background: #F1F5F9;
+    padding: 6px 9px;
+    border-radius: 6px;
+  }
+
+  /* Sub card and toggle */
+  .ad-sub-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 12px;
+  }
+  .ad-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .ad-sub-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0;
+  }
+  .ad-view-toggle-btns {
+    display: inline-flex;
+    background: #F1F5F9;
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .ad-toggle-btn {
+    border: none;
+    background: transparent;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #64748B;
+    cursor: pointer;
+  }
+  .ad-toggle-btn.active {
+    background: #FFFFFF;
+    color: var(--navy);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .ad-chart-container {
+    position: relative;
+    width: 100%;
+    min-height: 220px;
+    height: 240px;
+  }
+
+  /* Phone view adjustments */
+  body.is-phone-view .ad-section-box,
+  @media (max-width: 768px) {
+    body:not(.view-force-web) .ad-section-box {
+      padding: 12px 12px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+    }
+    body:not(.view-force-web) .ad-absent-list {
+      grid-template-columns: 1fr;
+    }
+    body:not(.view-force-web) .ad-sub-card {
+      padding: 12px 10px;
+    }
+    body:not(.view-force-web) .ad-header-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    body:not(.view-force-web) .ad-date-nav-controls {
+      width: 100%;
+      justify-content: space-between;
+    }
+    body:not(.view-force-web) .ad-date-select {
+      flex: 1;
+    }
+  }
 </style>
 </head>
 <body>
@@ -825,53 +1268,104 @@
   
   <!-- ATTENDANCE DASHBOARD -->
   <div class="page" id="page-attendancedash">
-    <!-- Absent Today -->
-    <div style="background:#CBE1F3; padding:16px; border-radius:10px; border:1px solid #AECFE8; margin-bottom:14px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <h2 style="font-size:16px; font-weight:600; color:#1F3864; margin:0;">Absent Today</h2>
-        <div style="font-size:13px; color:#1F3864;">
-          View Date: <select id="ad-date-select" style="padding:4px 8px; border:1px solid #AECFE8; border-radius:4px; font-size:13px;"></select>
+    <!-- 1. Tình hình vắng mặt hôm nay / theo ngày -->
+    <div class="ad-section-box ad-today-box">
+      <div class="ad-header-row">
+        <div>
+          <div class="ad-section-eyebrow">ABSENT TRACKER &middot; THEO NGÀY</div>
+          <h2 class="ad-section-heading">👥 Tình Hình Nhân Sự Vắng Mặt</h2>
+        </div>
+        <div class="ad-date-nav-controls">
+          <button type="button" class="ad-btn-icon" onclick="prevDate()" title="Ngày trước">◀</button>
+          <button type="button" class="ad-btn-today" onclick="goTodayDate()">Hôm nay</button>
+          <button type="button" class="ad-btn-icon" onclick="nextDate()" title="Ngày sau">▶</button>
+          <select id="ad-date-select" class="ad-date-select" aria-label="Chọn ngày xem vắng mặt"></select>
         </div>
       </div>
-      <div class="grid" style="display:flex; flex-wrap:wrap; gap:14px;" id="ad-absent-today">
-        <!-- cards injected here -->
+
+      <!-- 5-Day Week Strip for 1-Touch Quick Day Switching -->
+      <div class="ad-week-day-strip" id="ad-week-day-strip"></div>
+
+      <!-- Quick Executive Summary Pills -->
+      <div class="ad-summary-pills" id="ad-summary-pills"></div>
+
+      <!-- Absence Cards Container -->
+      <div class="ad-absent-list" id="ad-absent-today"></div>
+    </div>
+
+    <!-- 2. Weekly Horizon (Who was and will be absent) -->
+    <div class="ad-section-box">
+      <div class="ad-header-row">
+        <div>
+          <div class="ad-section-eyebrow">WEEKLY HORIZON</div>
+          <h2 class="ad-section-heading">📅 Kế Hoạch Vắng Mặt Trong Tuần</h2>
+        </div>
+        <div class="ad-week-nav-toolbar">
+          <button type="button" class="ad-nav-pill" onclick="prevADWeek()">◀ Tuần trước</button>
+          <button type="button" class="ad-nav-pill active" onclick="thisADWeek()">Tuần này</button>
+          <button type="button" class="ad-nav-pill" onclick="nextADWeek()">Tuần sau ▶</button>
+        </div>
+      </div>
+      
+      <div class="ad-current-week-banner">
+        <span>Đang xem dữ liệu: <strong id="ad-week-label-banner">--</strong></span>
+      </div>
+
+      <!-- Leave Concentration Heatmap -->
+      <div class="ad-sub-card">
+        <div class="ad-sub-header">
+          <h3 class="ad-sub-title">🔥 Mật độ vắng mặt theo khách hàng (<span id="ad-week-label-0"></span>)</h3>
+        </div>
+        <div id="ad-leave-heatmap"></div>
+      </div>
+
+      <!-- Employees on Leave Detail -->
+      <div class="ad-sub-card">
+        <div class="ad-sub-header">
+          <h3 class="ad-sub-title">📋 Danh sách nhân sự nghỉ phép (<span id="ad-week-label-1"></span>)</h3>
+          <div class="ad-view-toggle-btns" id="ad-leave-view-toggle">
+            <button type="button" class="ad-toggle-btn active" data-view="card">🃏 Thẻ</button>
+            <button type="button" class="ad-toggle-btn" data-view="table">📊 Bảng</button>
+          </div>
+        </div>
+        <div id="ad-leave-cards-container"></div>
+        <div id="ad-leave-table" style="display:none;"></div>
       </div>
     </div>
 
-    <!-- Weekly Horizon -->
-    <div style="border:1px solid #AECFE8; border-radius:10px; padding:16px; margin-bottom:14px; background:#F2F8FD;">
-      <div class="section-title" style="margin-top:0;">Weekly Horizon: Who was and will be absent</div>
-      <div class="grid grid-2">
-        <div class="card" style="display:flex; flex-direction:column; height:100%;">
-          <p class="chart-insight" style="margin-bottom:8px;">Leave concentration (<span id="ad-week-label-0"></span>)</p>
-          <div id="ad-leave-heatmap"></div>
+    <!-- 3. Work Intensity & Overtime / Late Checkout Alerts -->
+    <div class="ad-section-box">
+      <div class="ad-header-row">
+        <div>
+          <div class="ad-section-eyebrow">WORK INTENSITY &amp; OVERTIME</div>
+          <h2 class="ad-section-heading">⚡ Cảnh Báo Check-out Muộn (&gt;90p sau giờ làm)</h2>
         </div>
-        <div class="card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <p class="chart-insight" style="margin:0;">Employees on Leave (<span id="ad-week-label-1"></span>)</p>
-          <div><button onclick="prevADWeek()" style="font-size:12px;">&#8592; Prev Wk</button> <button onclick="thisADWeek()" style="font-size:12px;">This Wk</button> <button onclick="nextADWeek()" style="font-size:12px;">Next Wk &#8594;</button></div></div>
-          <div id="ad-leave-table"></div>
+        <div class="ad-week-nav-toolbar">
+          <button type="button" class="ad-nav-pill" onclick="prevADWeek()">◀</button>
+          <button type="button" class="ad-nav-pill active" onclick="thisADWeek()">Tuần này</button>
+          <button type="button" class="ad-nav-pill" onclick="nextADWeek()">▶</button>
         </div>
       </div>
-    </div>
 
-    <!-- Work Intensity -->
-    <div style="border:1px solid #AECFE8; border-radius:10px; padding:16px; background:#F2F8FD;">
-      <div class="section-title" style="margin-top:0;">Work Intensity & Overtime Alerts: Late Checkout Tracking (>90 min post-COB)</div>
-      <div class="grid grid-2">
-        <div class="chart-card" style="display:flex; flex-direction:column; height:100%;">
-          <p class="chart-insight" style="margin-bottom:12px;">Total Late Checkouts (>90min post-COB) by Customer</p>
-          <div style="position:relative; flex:1; width:100%; min-height:200px;">
-              <canvas id="ad-late-chart"></canvas>
+      <!-- Late Checkout Chart -->
+      <div class="ad-sub-card">
+        <h3 class="ad-sub-title" style="margin-bottom:12px;">📊 Số ca về trễ &amp; Giờ làm TB theo khách hàng</h3>
+        <div class="ad-chart-container">
+          <canvas id="ad-late-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Burnout Exposure Watchlist -->
+      <div class="ad-sub-card">
+        <div class="ad-sub-header">
+          <h3 class="ad-sub-title">⚠️ Danh sách nguy cơ quá tải / Burnout (<span id="ad-week-label-2"></span>)</h3>
+          <div class="ad-view-toggle-btns" id="ad-burnout-view-toggle">
+            <button type="button" class="ad-toggle-btn active" data-view="card">🃏 Thẻ</button>
+            <button type="button" class="ad-toggle-btn" data-view="table">📊 Bảng</button>
           </div>
         </div>
-        <div class="card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <p class="chart-insight" style="margin:0;">Burnout Exposure Watchlist (<span id="ad-week-label-2"></span>)</p>
-            <div><button onclick="prevADWeek()" style="font-size:12px;">&#8592; Prev Wk</button> <button onclick="thisADWeek()" style="font-size:12px;">This Wk</button> <button onclick="nextADWeek()" style="font-size:12px;">Next Wk &#8594;</button></div>
-          </div>
-          <div id="ad-late-table"></div>
-        </div>
+        <div id="ad-late-cards-container"></div>
+        <div id="ad-late-table" style="display:none;"></div>
       </div>
     </div>
   </div>
@@ -898,6 +1392,11 @@
     <span class="nav-icon">📊</span>
     <span class="nav-label">Overview</span>
   </button>
+  <button type="button" class="mob-nav-btn" data-tab="attendancedash">
+    <span class="nav-indicator"></span>
+    <span class="nav-icon">🎯</span>
+    <span class="nav-label">Attendance</span>
+  </button>
   <button type="button" class="mob-nav-btn" data-tab="attendance">
     <span class="nav-indicator"></span>
     <span class="nav-icon">⏱️</span>
@@ -908,19 +1407,9 @@
     <span class="nav-icon">🏖️</span>
     <span class="nav-label">Leave</span>
   </button>
-  <button type="button" class="mob-nav-btn" data-tab="otwfh">
-    <span class="nav-indicator"></span>
-    <span class="nav-icon">⚡</span>
-    <span class="nav-label">OT &amp; WFH</span>
-  </button>
-  <button type="button" class="mob-nav-btn" data-tab="ops">
-    <span class="nav-indicator"></span>
-    <span class="nav-icon">📑</span>
-    <span class="nav-label">Requests</span>
-  </button>
   <button type="button" class="mob-nav-btn" data-tab="more">
     <span class="nav-indicator"></span>
-    <span class="nav-icon">⚙️</span>
+    <span class="nav-icon">☰</span>
     <span class="nav-label">Khác</span>
   </button>
 </nav>
@@ -933,11 +1422,18 @@
     <button type="button" class="sheet-close-btn" aria-label="Đóng">✕</button>
   </div>
   <div class="more-sheet-items">
-    <div class="more-sheet-item" data-tab="attendancedash">
-      <span style="font-size:20px;">🎯</span>
+    <div class="more-sheet-item" data-tab="otwfh">
+      <span style="font-size:20px;">⚡</span>
       <div>
-        <div style="font-size:14px;font-weight:600;">Attendance Dashboard</div>
-        <div style="font-size:11.5px;color:var(--muted);font-weight:normal;">Weekly Horizon &amp; Burnout Watchlist</div>
+        <div style="font-size:14px;font-weight:600;">OT &amp; WFH</div>
+        <div style="font-size:11.5px;color:var(--muted);font-weight:normal;">Tăng ca &amp; Làm việc tại nhà</div>
+      </div>
+    </div>
+    <div class="more-sheet-item" data-tab="ops">
+      <span style="font-size:20px;">📑</span>
+      <div>
+        <div style="font-size:14px;font-weight:600;">Requests ops</div>
+        <div style="font-size:11.5px;color:var(--muted);font-weight:normal;">Đi trễ, về sớm, công tác, đổi ca</div>
       </div>
     </div>
     <div class="more-sheet-item" data-tab="risk">
@@ -1019,6 +1515,7 @@ function initUI() {
   initKpiTooltip();
   initViewModeController();
   initMobileBottomNav();
+  initAttendanceDashboard();
 }
 
 const TABS = [
@@ -1100,7 +1597,7 @@ function initViewModeController() {
 }
 
 function syncBottomNavWithTab(tabId) {
-  const directTabs = ['overview', 'attendance', 'leave', 'otwfh', 'ops'];
+  const directTabs = ['overview', 'attendancedash', 'attendance', 'leave'];
   const isDirect = directTabs.includes(tabId);
   document.querySelectorAll('.mob-nav-btn').forEach(btn => {
     if (isDirect) {
@@ -2680,16 +3177,108 @@ function getWeekRangesForAD() {
   return ad.weeks || [];
 }
 
+function getDaysForWeek(weekName) {
+  const ad = D.attendance_dashboard;
+  if (!ad || !ad.calendars || !ad.calendars[weekName]) return [];
+  const cal = ad.calendars[weekName];
+  const firstKey = Object.keys(cal)[0];
+  if (!firstKey || !cal[firstKey].days) return [];
+  
+  const allAbsDates = [...new Set((ad.absences || []).map(x => x.date))];
+  
+  return cal[firstKey].days.map(d => {
+    const parts = d.date.split('/');
+    let fullDate = null;
+    if (parts.length === 2) {
+      const targetSuffix = `-${parts[1]}-${parts[0]}`;
+      fullDate = allAbsDates.find(x => x.endsWith(targetSuffix));
+    }
+    if (!fullDate) {
+      const yr = (weekName && weekName.includes('27')) ? '2027' : '2026';
+      fullDate = `${yr}-${parts[1]}-${parts[0]}`;
+    }
+    return {
+      weekday: d.weekday,
+      dateStr: d.date,
+      fullDate: fullDate
+    };
+  });
+}
+
+let adLeaveViewMode = 'card';
+let adBurnoutViewMode = 'card';
+
+function initADViewToggles() {
+  const leaveToggle = document.getElementById('ad-leave-view-toggle');
+  if (leaveToggle) {
+    leaveToggle.querySelectorAll('.ad-toggle-btn').forEach(btn => {
+      btn.onclick = () => {
+        adLeaveViewMode = btn.dataset.view;
+        leaveToggle.querySelectorAll('.ad-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+        updateADLeaveViewVisibility();
+      };
+    });
+  }
+  const burnoutToggle = document.getElementById('ad-burnout-view-toggle');
+  if (burnoutToggle) {
+    burnoutToggle.querySelectorAll('.ad-toggle-btn').forEach(btn => {
+      btn.onclick = () => {
+        adBurnoutViewMode = btn.dataset.view;
+        burnoutToggle.querySelectorAll('.ad-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+        updateADBurnoutViewVisibility();
+      };
+    });
+  }
+  updateADLeaveViewVisibility();
+  updateADBurnoutViewVisibility();
+}
+
+function updateADLeaveViewVisibility() {
+  const cards = document.getElementById('ad-leave-cards-container');
+  const table = document.getElementById('ad-leave-table');
+  if (cards && table) {
+    cards.style.display = adLeaveViewMode === 'card' ? 'block' : 'none';
+    table.style.display = adLeaveViewMode === 'table' ? 'block' : 'none';
+  }
+}
+
+function updateADBurnoutViewVisibility() {
+  const cards = document.getElementById('ad-late-cards-container');
+  const table = document.getElementById('ad-late-table');
+  if (cards && table) {
+    cards.style.display = adBurnoutViewMode === 'card' ? 'block' : 'none';
+    table.style.display = adBurnoutViewMode === 'table' ? 'block' : 'none';
+  }
+}
+
 function initAttendanceDashboard() {
   const ad = D.attendance_dashboard;
   if(!ad) return;
   
+  // Setup Week controls
+  let wArr = getWeekRangesForAD();
+  if(!currentADWeek && wArr.length > 0) {
+    currentADWeek = (ad.current_week && wArr.includes(ad.current_week)) ? ad.current_week : wArr[wArr.length - 1];
+  }
+
   // Setup Date dropdown
   let todayStr = new Date().toISOString().split('T')[0];
-  let dates = [...new Set(ad.absences.map(x => x.date))];
+  let dates = [...new Set((ad.absences || []).map(x => x.date))];
   if(!dates.includes(todayStr)) dates.push(todayStr);
   dates.sort();
-  if(!currentADDate) currentADDate = todayStr;
+
+  if(!currentADDate) {
+    // Smart default: pick a date with absences in current week if today has none
+    const todayHasAbs = (ad.absences || []).some(x => x.date === todayStr);
+    if (todayHasAbs) {
+      currentADDate = todayStr;
+    } else {
+      const weekDays = getDaysForWeek(currentADWeek);
+      const weekDates = weekDays.map(w => w.fullDate);
+      const candidate = dates.filter(d => weekDates.includes(d) && (ad.absences || []).some(x => x.date === d)).pop();
+      currentADDate = candidate || dates[dates.length - 1];
+    }
+  }
 
   const sel = document.getElementById('ad-date-select');
   if(sel) {
@@ -2697,12 +3286,20 @@ function initAttendanceDashboard() {
     sel.onchange = (e) => { currentADDate = e.target.value; renderAttendanceDashboard(); };
   }
   
-  // Setup Week controls
-  let wArr = getWeekRangesForAD();
-  if(!currentADWeek && wArr.length > 0) {
-    currentADWeek = (ad.current_week && wArr.includes(ad.current_week)) ? ad.current_week : wArr[0];
-  }
+  initADViewToggles();
 }
+
+window.selectADDate = (d) => {
+  currentADDate = d;
+  renderAttendanceDashboard();
+};
+
+window.goTodayDate = () => {
+  const ad = D.attendance_dashboard;
+  let todayStr = new Date().toISOString().split('T')[0];
+  currentADDate = todayStr;
+  renderAttendanceDashboard();
+};
 
 window.thisADWeek = () => {
   const ad = D.attendance_dashboard;
@@ -2710,19 +3307,57 @@ window.thisADWeek = () => {
   if(ad && ad.current_week && wArr.includes(ad.current_week)) {
     currentADWeek = ad.current_week;
   } else if(wArr.length > 0) {
-    currentADWeek = wArr[0];
+    currentADWeek = wArr[wArr.length - 1];
+  }
+  const weekDays = getDaysForWeek(currentADWeek);
+  if (weekDays.length > 0) {
+    const datesWithAbs = weekDays.filter(wd => (ad.absences||[]).some(x => x.date === wd.fullDate));
+    if (datesWithAbs.length > 0) currentADDate = datesWithAbs[datesWithAbs.length - 1].fullDate;
+    else currentADDate = weekDays[0].fullDate;
   }
   renderAttendanceDashboard();
 };
+
 window.prevADWeek = () => {
   let wArr = getWeekRangesForAD();
   let idx = wArr.indexOf(currentADWeek);
-  if(idx > 0) { currentADWeek = wArr[idx-1]; renderAttendanceDashboard(); }
+  if(idx > 0) {
+    currentADWeek = wArr[idx-1];
+    const weekDays = getDaysForWeek(currentADWeek);
+    if (weekDays.length > 0) {
+      const datesWithAbs = weekDays.filter(wd => (D.attendance_dashboard.absences||[]).some(x => x.date === wd.fullDate));
+      if (datesWithAbs.length > 0) currentADDate = datesWithAbs[datesWithAbs.length - 1].fullDate;
+      else currentADDate = weekDays[0].fullDate;
+    }
+    renderAttendanceDashboard();
+  }
 };
+
 window.nextADWeek = () => {
   let wArr = getWeekRangesForAD();
   let idx = wArr.indexOf(currentADWeek);
-  if(idx < wArr.length-1) { currentADWeek = wArr[idx+1]; renderAttendanceDashboard(); }
+  if(idx < wArr.length-1) {
+    currentADWeek = wArr[idx+1];
+    const weekDays = getDaysForWeek(currentADWeek);
+    if (weekDays.length > 0) {
+      const datesWithAbs = weekDays.filter(wd => (D.attendance_dashboard.absences||[]).some(x => x.date === wd.fullDate));
+      if (datesWithAbs.length > 0) currentADDate = datesWithAbs[datesWithAbs.length - 1].fullDate;
+      else currentADDate = weekDays[0].fullDate;
+    }
+    renderAttendanceDashboard();
+  }
+};
+
+window.prevDate = () => {
+  let opts = Array.from(document.getElementById('ad-date-select').options);
+  let idx = opts.findIndex(o => o.value === currentADDate);
+  if(idx > 0) { currentADDate = opts[idx-1].value; renderAttendanceDashboard(); }
+};
+
+window.nextDate = () => {
+  let opts = Array.from(document.getElementById('ad-date-select').options);
+  let idx = opts.findIndex(o => o.value === currentADDate);
+  if(idx < opts.length-1) { currentADDate = opts[idx+1].value; renderAttendanceDashboard(); }
 };
 
 function renderADLeaveHeatmap(container, calMap, rows){
@@ -2788,57 +3423,121 @@ function renderAttendanceDashboard() {
     initAttendanceDashboard();
   }
 
-  // 1. Absent Today
-  const absentCont = document.getElementById('ad-absent-today');
-  absentCont.innerHTML = '';
-  document.getElementById('ad-date-select').value = currentADDate;
-  
-  let absentRows = ad.absences.filter(x => x.date === currentADDate);
-  if(cscope !== 'All Clients') absentRows = absentRows.filter(x => x.customer === cscope);
-  if(tscope !== 'All Teams') absentRows = absentRows.filter(x => x.team === tscope);
+  const dateSel = document.getElementById('ad-date-select');
+  if (dateSel) dateSel.value = currentADDate;
 
-  if(absentRows.length === 0) {
-    absentCont.innerHTML = '<p style="margin:0; color:var(--muted); font-size:14px;">No absences logged for this date and scope.</p>';
-  } else {
-    absentRows.forEach(a => {
-      let icon = 'O'; let color = '#185FA5'; let bg = '#EAF1FB';
-      // Notice Category Color
-      if(a.notice_category === 'Urgent') { 
-          icon = '!'; color = '#A32D2D'; bg = '#FCEBEB';
-      } else if (a.notice_category === 'Unplanned') {
-          icon = '!'; color = '#B8860B'; bg = '#FDF5E6';
-      } else if (a.notice_category === 'Planned') {
-          icon = 'P'; color = '#3B6D11'; bg = '#EAF3DE';
-      }
-      
-      const card = document.createElement('div');
-      card.style.cssText = `background:${bg}; border:1px solid ${color}; border-radius:8px; padding:10px 14px; min-width:200px; display:flex; align-items:center; gap:12px; flex:1; max-width:280px; cursor:pointer;`;
-      let reasonText = a.reason || 'Leave';
-      card.setAttribute('title', reasonText);
-      card.title = reasonText;
-      
-      card.innerHTML = `
-        <div style="width:36px; height:36px; border-radius:50%; background:#fff; border:1px solid ${color}; display:flex; align-items:center; justify-content:center; color:${color}; font-weight:600; font-size:16px;">
-          ${a.name.charAt(0) || 'U'}
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:14px; font-weight:600; color:var(--navy);">${a.name}</div>
-          <div style="font-size:12px; color:var(--muted);">${a.customer || a.team || 'No team'}</div>
-        </div>
-        <div style="width:24px; height:24px; border-radius:50%; border:2px solid ${color}; display:flex; align-items:center; justify-content:center; color:${color}; font-size:12px; font-weight:bold;">
-          ${icon}
-        </div>
-      `;
-      absentCont.appendChild(card);
-    });
-  }
-
-  // Update Week Labels in Headers
+  // Update Week Labels in Headers & Banner
+  if(document.getElementById('ad-week-label-banner')) document.getElementById('ad-week-label-banner').innerText = currentADWeek;
   if(document.getElementById('ad-week-label-0')) document.getElementById('ad-week-label-0').innerText = currentADWeek;
   if(document.getElementById('ad-week-label-1')) document.getElementById('ad-week-label-1').innerText = currentADWeek;
   if(document.getElementById('ad-week-label-2')) document.getElementById('ad-week-label-2').innerText = currentADWeek;
 
-  // 2. Weekly Horizon Leave Concentration Heatmap
+  // 1. Render 5-Day Week Strip for 1-touch date switching
+  const stripCont = document.getElementById('ad-week-day-strip');
+  if (stripCont) {
+    const weekDays = getDaysForWeek(currentADWeek);
+    stripCont.innerHTML = weekDays.map(wd => {
+      let dayAbs = (ad.absences || []).filter(x => x.date === wd.fullDate);
+      if (cscope !== 'All Clients') dayAbs = dayAbs.filter(x => x.customer === cscope);
+      if (tscope !== 'All Teams') dayAbs = dayAbs.filter(x => x.team === tscope);
+      const isActive = (wd.fullDate === currentADDate);
+      const urgentCount = dayAbs.filter(x => x.notice_category === 'Urgent').length;
+      const hasUrgent = urgentCount > 0;
+      return `
+        <div class="ad-day-chip ${isActive ? 'active' : ''}" onclick="selectADDate('${wd.fullDate}')">
+          <span class="chip-dow">${wd.weekday}</span>
+          <span class="chip-date">${wd.dateStr}</span>
+          <span class="chip-count ${hasUrgent ? 'has-urgent' : ''}">${dayAbs.length} vắng</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 2. Render Absent Today / Date Details
+  let absentRows = (ad.absences || []).filter(x => x.date === currentADDate);
+  if(cscope !== 'All Clients') absentRows = absentRows.filter(x => x.customer === cscope);
+  if(tscope !== 'All Teams') absentRows = absentRows.filter(x => x.team === tscope);
+
+  // Summary pills
+  const pillsCont = document.getElementById('ad-summary-pills');
+  if (pillsCont) {
+    const total = absentRows.length;
+    const urgent = absentRows.filter(x => x.notice_category === 'Urgent').length;
+    const unplanned = absentRows.filter(x => x.notice_category === 'Unplanned').length;
+    const planned = absentRows.filter(x => x.notice_category === 'Planned').length;
+
+    const custCounts = {};
+    absentRows.forEach(a => {
+      const c = a.customer || 'Khác';
+      custCounts[c] = (custCounts[c] || 0) + 1;
+    });
+    const topCusts = Object.entries(custCounts)
+      .sort((a,b) => b[1] - a[1])
+      .map(([c, n]) => `${c} (${n})`)
+      .slice(0, 2)
+      .join(', ');
+
+    let pillsHtml = `
+      <span class="ad-sum-pill pill-total">👥 ${total} nhân sự vắng mặt</span>
+      ${urgent > 0 ? `<span class="ad-sum-pill pill-urgent">🚨 ${urgent} Khẩn cấp</span>` : ''}
+      ${unplanned > 0 ? `<span class="ad-sum-pill pill-unplanned">⚠️ ${unplanned} Đột xuất</span>` : ''}
+      ${planned > 0 ? `<span class="ad-sum-pill pill-planned">🟢 ${planned} Kế hoạch</span>` : ''}
+      ${topCusts ? `<span class="ad-sum-pill pill-cust">🏢 ${escapeHtml(topCusts)}</span>` : ''}
+    `;
+    pillsCont.innerHTML = pillsHtml;
+  }
+
+  // Absent employee cards
+  const absentCont = document.getElementById('ad-absent-today');
+  if (absentCont) {
+    if(absentRows.length === 0) {
+      absentCont.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 22px 16px; text-align: center; color: var(--muted); background: #FFFFFF; border-radius: 10px; border: 1px dashed #CBD5E1;">
+          <span style="font-size: 24px; display: block; margin-bottom: 6px;">🎉</span>
+          <div style="font-size: 14px; font-weight: 600; color: var(--navy);">Không có nhân sự vắng mặt trong ngày này</div>
+          <div style="font-size: 12px; margin-top: 3px; color: var(--muted);">Ngày: ${currentADDate} (${cscope} &middot; ${tscope})</div>
+        </div>
+      `;
+    } else {
+      absentCont.innerHTML = absentRows.map(a => {
+        let catClass = 'cat-planned';
+        let badgeClass = 'badge-planned';
+        let badgeText = '🟢 Kế hoạch';
+        if(a.notice_category === 'Urgent') {
+          catClass = 'cat-urgent';
+          badgeClass = 'badge-urgent';
+          badgeText = '🚨 Khẩn cấp';
+        } else if(a.notice_category === 'Unplanned') {
+          catClass = 'cat-unplanned';
+          badgeClass = 'badge-unplanned';
+          badgeText = '⚠️ Đột xuất';
+        }
+
+        const initial = (a.name.trim().charAt(0) || 'U').toUpperCase();
+        const clientTeam = [a.customer, a.team].filter(Boolean).join(' &middot; ') || 'Chưa phân bổ';
+        const reason = a.reason || 'Nghỉ phép';
+
+        return `
+          <div class="ad-absent-card ${catClass}">
+            <div class="ad-card-top">
+              <div class="ad-card-avatar">${initial}</div>
+              <div class="ad-card-meta">
+                <div class="ad-card-name">${escapeHtml(a.name)}</div>
+                <div class="ad-card-sub">🏢 ${clientTeam}</div>
+              </div>
+              <span class="ad-badge ${badgeClass}">${badgeText}</span>
+            </div>
+            <div class="ad-card-reason">
+              <span class="reason-icon">📝</span>
+              <span class="reason-text">${escapeHtml(reason)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 3. Weekly Horizon Leave Concentration Heatmap
   const calMap = (ad.calendars && ad.calendars[currentADWeek]) ? ad.calendars[currentADWeek] : {};
   let curRows = leaveHeatmapRows(calMap);
   renderADLeaveHeatmap(document.getElementById('ad-leave-heatmap'), calMap, curRows);
@@ -2847,7 +3546,36 @@ function renderAttendanceDashboard() {
   if(cscope !== 'All Clients') leaves = leaves.filter(x => x.customer === cscope);
   if(tscope !== 'All Teams') leaves = leaves.filter(x => x.team === tscope);
 
-  // Leave Table
+  // Leave Cards (Mobile)
+  const leaveCardsCont = document.getElementById('ad-leave-cards-container');
+  if (leaveCardsCont) {
+    if (leaves.length === 0) {
+      leaveCardsCont.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">Không có nhân sự nghỉ phép trong tuần này.</div>';
+    } else {
+      leaveCardsCont.innerHTML = leaves.map(r => {
+        let bClass = 'badge-planned'; let bText = '🟢 Kế hoạch';
+        if (r.notice_category === 'Urgent') { bClass = 'badge-urgent'; bText = '🚨 Khẩn cấp'; }
+        else if (r.notice_category === 'Unplanned') { bClass = 'badge-unplanned'; bText = '⚠️ Đột xuất'; }
+        return `
+          <div class="ad-leave-card-item">
+            <div class="ad-leave-card-top">
+              <span class="ad-leave-card-name">${escapeHtml(r.name)}</span>
+              <span class="ad-badge ${bClass}">${bText}</span>
+            </div>
+            <div class="ad-leave-card-details">
+              <span>🏢 <strong>${escapeHtml(r.customer)}</strong> (${escapeHtml(r.team || '')})</span>
+              <span>📅 <strong>${r.from} &rarr; ${r.to}</strong> (${r.days} ngày)</span>
+            </div>
+            <div class="ad-leave-card-reason">
+              📝 <strong>Lý do:</strong> ${escapeHtml(r.reason || 'Nghỉ phép')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Leave Table (Desktop)
   renderGenericTable(document.getElementById('ad-leave-table'),
     ['Employee Name', 'Customer', 'Leave Dates', 'Leave Days', 'Notice Category', 'Reason'],
     leaves.map(r => {
@@ -2856,7 +3584,7 @@ function renderAttendanceDashboard() {
     'No leaves for this selected week.'
   );
 
-  // 3. Work Intensity
+  // 4. Work Intensity & Late Checkout
   let lates = ad.late_watch.filter(x => x.week === currentADWeek);
   if(cscope !== 'All Clients') lates = lates.filter(x => x.customer === cscope);
   if(tscope !== 'All Teams') lates = lates.filter(x => x.team === tscope);
@@ -2942,6 +3670,45 @@ function renderAttendanceDashboard() {
     return { name: k, customer: t.cust, count: t.count, times: t.times };
   }).sort((a,b) => b.count - a.count);
 
+  // Late Cards (Mobile)
+  const lateCardsCont = document.getElementById('ad-late-cards-container');
+  if (lateCardsCont) {
+    if (empLates.length === 0) {
+      lateCardsCont.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">Không có ca check-out muộn (>90 phút).</div>';
+    } else {
+      lateCardsCont.innerHTML = empLates.map(r => {
+        let badgeColor = '#FEF3C7'; let textColor = '#92400E'; let risk = 'Cảnh báo';
+        if (r.count > 5) { badgeColor = '#FEE2E2'; textColor = '#DC2626'; risk = 'Rất cao'; }
+        else if (r.count > 2) { badgeColor = '#FFEDD5'; textColor = '#C2410C'; risk = 'Cao'; }
+
+        let totalMins = r.times.reduce((acc, val) => {
+          let [h,m] = val.split(':'); return acc + (parseInt(h)*60 + parseInt(m));
+        }, 0);
+        let avgMins = Math.round(totalMins / r.times.length);
+        let h = Math.floor(avgMins/60); let m = avgMins%60;
+        let ampm = h >= 12 ? 'PM' : 'AM';
+        let h12 = h % 12 || 12;
+        let timeStr = `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+
+        return `
+          <div class="ad-late-card-item">
+            <div class="ad-late-card-top">
+              <span class="ad-late-card-name">${escapeHtml(r.name)}</span>
+              <span class="ad-badge" style="background:${badgeColor}; color:${textColor}; font-weight:700;">
+                ${r.count}x &middot; ${risk}
+              </span>
+            </div>
+            <div class="ad-late-card-details">
+              <span>🏢 <strong>${escapeHtml(r.customer)}</strong></span>
+              <span>🕒 Giờ checkout TB: <strong>${timeStr}</strong> (${r.count} lần)</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Late Table (Desktop)
   renderGenericTable(document.getElementById('ad-late-table'),
     ['Employee Name', 'Customer', 'Total Late Checkouts', 'Avg. Checkout Time'],
     empLates.map(r => {
@@ -2965,18 +3732,10 @@ function renderAttendanceDashboard() {
     }),
     'No frequent late checkouts.'
   );
-}
 
-window.prevDate = () => {
-  let opts = Array.from(document.getElementById('ad-date-select').options);
-  let idx = opts.findIndex(o => o.value === currentADDate);
-  if(idx > 0) { currentADDate = opts[idx-1].value; renderAttendanceDashboard(); }
-};
-window.nextDate = () => {
-  let opts = Array.from(document.getElementById('ad-date-select').options);
-  let idx = opts.findIndex(o => o.value === currentADDate);
-  if(idx < opts.length-1) { currentADDate = opts[idx+1].value; renderAttendanceDashboard(); }
-};
+  updateADLeaveViewVisibility();
+  updateADBurnoutViewVisibility();
+}
 
 async function loadDashboardData() {
   try {
