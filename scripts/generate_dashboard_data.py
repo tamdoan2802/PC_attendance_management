@@ -1138,25 +1138,25 @@ def build_dash_data(proc, scopes, week_ranges):
             am    = att_metrics(a_df)
 
             if am is None:
-                for k in series:
-                    if k not in ("overwork_employees","active_flags",
-                                 "leave_days","leave_approval","leave_headcount",
-                                 "leave_planned_days","leave_unplanned_days","leave_urgent_days",
-                                 "leave_planned_count","leave_unplanned_count","leave_urgent_count",
-                                 "ot_hours","ot_weekend_hours","ot_weekday_hours","ot_employees","wfh_days",
-                                 "lc_ec_events","trip_count","sc_count"):
-                        series[k].append(0)
-                    else:
-                        series[k].append(0)
-                continue
-
-            am = fill_explained(am, wkd, lcec_lkp)
-            for k, v in am.items():
-                series[k].append(v)
+                att_keys = [
+                    "attendance_quality","late_checkin_rate","avg_working_hours","extensive_late_count","adherence_rate",
+                    "early_checkout_rate","avg_early_co",
+                    "early_ci_signal_count","early_ci_explained_count","early_ci_unexplained_count",
+                    "late_ci_le5","late_ci_5to10","late_ci_gt10","late_ci_total","late_ci_unexplained",
+                    "late_co_lt30","late_co_30to90","late_co_gt90","late_co_total",
+                    "total_weekday_records","total_weekday_employees",
+                    "work_record_count","work_employee_count"
+                ]
+                for k in att_keys:
+                    series[k].append(0)
+            else:
+                am = fill_explained(am, wkd, lcec_lkp)
+                for k, v in am.items():
+                    series[k].append(v)
 
             # -- Overwork (avg Delta > threshold, no OT filed) --
             delta_col = "Delta (Số giờ làm việc thực tế - Số giờ làm việc tiêu chuẩn)"
-            if delta_col in wkd.columns:
+            if delta_col in wkd.columns and len(wkd) > 0:
                 avg_delta    = wkd.groupby("Employee_ID")[delta_col].mean()
                 ow_ids       = set(avg_delta[avg_delta > OVERWORK_THRESHOLD_HRS].index)
                 ot_filed_wk  = {eid for (eid, d) in ot_appr_set if d in week_dates}
@@ -1629,9 +1629,9 @@ def build_dash_data(proc, scopes, week_ranges):
             
         # 4. Generate continuous weeks & weekly leaves
         import pandas as pd
-        min_date = pd.to_datetime(att["Date_Text"], format="%d/%m/%Y", errors="coerce").min()
-        max_date = pd.to_datetime(leave["Leave_To"]).max()
-        if pd.isnull(max_date): max_date = pd.to_datetime(att["Date_Text"], format="%d/%m/%Y", errors="coerce").max()
+        min_date = pd.to_datetime(att["Date_Text"], errors="coerce").min()
+        max_date = pd.to_datetime(leave["Leave_To"], errors="coerce").max()
+        if pd.isnull(max_date): max_date = pd.to_datetime(att["Date_Text"], errors="coerce").max()
         if pd.isnull(min_date): min_date = pd.Timestamp.now() - pd.Timedelta(days=30)
         if pd.isnull(max_date): max_date = pd.Timestamp.now() + pd.Timedelta(days=30)
         
