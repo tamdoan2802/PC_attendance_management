@@ -1,0 +1,57 @@
+name: "\U0001F504 Sync Dashboard from MISA"
+
+on:
+  # ── Manual trigger: bấm 1 nút trên GitHub App hoặc GitHub Web ──
+  workflow_dispatch:
+    inputs:
+      weeks:
+        description: "Số tuần trailing cần load (mặc định 4)"
+        required: false
+        default: "4"
+
+  # ── Tự động mỗi thứ Hai 8:00 SA giờ Việt Nam (UTC+7 = 01:00 UTC) ──
+  schedule:
+    - cron: "0 1 * * 1"
+
+permissions:
+  contents: write   # Cho phép workflow push commit vào repo
+
+jobs:
+  sync:
+    name: "Sync MISA → data.json → GitHub Pages"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # 1. Checkout toàn bộ repo (cần full history để push)
+      - name: "📥 Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Python 3.11
+      - name: "🐍 Setup Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # 3. Cài đặt dependencies
+      - name: "📦 Install dependencies"
+        run: pip install -r requirements.txt
+
+      # 4. Chạy script — lấy data từ MISA, tạo data.json (skip git deploy vì Actions tự xử lý)
+      - name: "🔄 Generate dashboard data from MISA API"
+        run: python scripts/generate_dashboard_data.py --source api --no-deploy
+        env:
+          MISA_TOKEN: ${{ secrets.MISA_TOKEN }}
+
+      # 5. Commit và push data.json + data.js nếu có thay đổi
+      - name: "🚀 Commit and push updated dashboard data"
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🔄 Auto-sync dashboard data [GitHub Actions]"
+          file_pattern: "references/data.json references/data.js"
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "actions@github.com"
+          commit_author: "GitHub Actions Bot <actions@github.com>"
