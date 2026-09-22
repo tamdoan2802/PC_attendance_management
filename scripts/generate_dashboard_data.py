@@ -44,13 +44,24 @@ except ImportError:
 THIS_DIR   = Path(__file__).parent.resolve()
 if str(THIS_DIR) not in sys.path:
     sys.path.insert(0, str(THIS_DIR))
+
+# REPO_DIR = the root of the git repo (parent of scripts/)
+REPO_DIR = THIS_DIR.parent
+
+# WORKSPACE_DIR = local OneDrive workspace (4 levels up from scripts/).
+# On GitHub Actions, this path won't exist — all data flows from MISA API only.
 WORKSPACE_DIR = THIS_DIR.parent.parent.parent.parent
 DATA_ATT_DIR = WORKSPACE_DIR / "data" / "Attendance"
 ENTITIES_DIR = WORKSPACE_DIR / "entities"
 TIMESHEET_DIR = DATA_ATT_DIR / "Timesheet"
 
-DATA_JSON_PATH = THIS_DIR.parent / "references" / "data.json"
-DATA_JS_PATH = THIS_DIR.parent / "references" / "data.js"
+DATA_JSON_PATH = REPO_DIR / "references" / "data.json"
+DATA_JS_PATH = REPO_DIR / "references" / "data.js"
+
+# On GitHub Actions: entities/ lives inside the repo under references/entities/
+# Prefer repo-local entities if the local OneDrive workspace doesn't exist
+if not ENTITIES_DIR.exists():
+    ENTITIES_DIR = REPO_DIR / "references" / "entities"
 
 EXCLUDED_TOTAL = {
     "MTVN0059",  # Adrian (Director)
@@ -627,9 +638,12 @@ def load_all_raw_data(source="api"):
     if source == "api":
         print("\n[2] Ingesting Live Data Directly from MISA AMIS REST API (In-Memory Streaming)...")
         try:
+            # misa_client.py lives in scripts/ (bundled for GitHub Actions).
+            # Also add local MisaSetup dir for backward compat on Windows.
             misa_setup_dir = WORKSPACE_DIR / "attendance reference" / "MisaSetup"
-            if str(misa_setup_dir) not in sys.path:
-                sys.path.insert(0, str(misa_setup_dir))
+            for p in [str(THIS_DIR), str(misa_setup_dir)]:
+                if p not in sys.path:
+                    sys.path.insert(0, p)
             from misa_client import MisaAmisClient
 
             client = MisaAmisClient()
@@ -647,6 +661,7 @@ def load_all_raw_data(source="api"):
         except Exception as e:
             print(f"  [WARN] MISA API direct streaming failed: {e}")
             print("  [INFO] Falling back to local Excel files in data/Attendance/...")
+
 
     # Fallback / Excel mode
     print("\n[2] Loading Live Requests from data/Attendance/ (Excel Fallback)...")
