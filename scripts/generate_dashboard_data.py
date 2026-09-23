@@ -839,6 +839,54 @@ def preprocess(raw):
         df["DIM_Employee.Location"] = df["Employee_ID"].apply(lambda x: master_map.get(str(x), {}).get("Location", "Da Nang"))
         df["Department"] = df["DIM_Employee.Team"]
 
+    # -- Cross-Reconcile Approved Business Trips & Leaves into FACT_Attendance_Daily --
+    if att is not None and not att.empty:
+        # 1. Reconcile approved business trips (Đi công tác = 8.0h working time per day)
+        if trip is not None and not trip.empty:
+            approved_trips = trip[trip["Status_Flag"] == 1]
+            for _, tr in approved_trips.iterrows():
+                eid = tr["Employee_ID"]
+                t_from = tr["Trip_From"]
+                t_to = tr["Trip_To"]
+                if pd.isna(t_from) or pd.isna(t_to):
+                    continue
+                cur_d = t_from.normalize()
+                end_d = t_to.normalize()
+                while cur_d <= end_d:
+                    if cur_d.weekday() < 5:  # Weekdays Mon-Fri
+                        mask = (att["Employee_ID"] == eid) & (att["Date_Text"].dt.normalize() == cur_d)
+                        if mask.any():
+                            std_h = att.loc[mask, "Số giờ làm việc tiêu chuẩn"].iloc[0] or 8.0
+                            cur_act = att.loc[mask, "Số giờ làm việc thực tế"].iloc[0] or 0.0
+                            new_act = max(cur_act, std_h)
+                            att.loc[mask, "Số giờ làm việc thực tế"] = new_act
+                            att.loc[mask, "Delta (Số giờ làm việc thực tế - Số giờ làm việc tiêu chuẩn)"] = new_act - std_h
+                            att.loc[mask, "Type of Date"] = "FullWorkDay"
+                    cur_d += pd.Timedelta(days=1)
+
+        # 2. Reconcile approved full-day leaves (Nghỉ phép, nghỉ kết hôn, nghỉ chế độ):
+        # If employee has approved full-day leave and 0 clock-in actual hours, ensure Type of Date is Leave
+        if leave is not None and not leave.empty:
+            approved_leaves = leave[leave["Status_Flag"] == 1]
+            for _, lv in approved_leaves.iterrows():
+                eid = lv["Employee_ID"]
+                l_from = lv["Leave_From"]
+                l_to = lv["Leave_To"]
+                days = safe_float(lv.get("Leave_Days", 1.0), default=1.0)
+                if pd.isna(l_from) or pd.isna(l_to):
+                    continue
+                cur_d = l_from.normalize()
+                end_d = l_to.normalize()
+                while cur_d <= end_d:
+                    if cur_d.weekday() < 5:
+                        mask = (att["Employee_ID"] == eid) & (att["Date_Text"].dt.normalize() == cur_d)
+                        if mask.any():
+                            cur_act = att.loc[mask, "Số giờ làm việc thực tế"].iloc[0] or 0.0
+                            if cur_act == 0 and days >= 1.0:
+                                att.loc[mask, "Type of Date"] = "Leave"
+                                att.loc[mask, "Delta (Số giờ làm việc thực tế - Số giờ làm việc tiêu chuẩn)"] = 0.0
+                    cur_d += pd.Timedelta(days=1)
+
     return dict(att=att, emp=emp, leave=leave, ot=ot, wfh=wfh, lcec=lcec, trip=trip, sc=sc)
 
 # ═══════════════════════════════════════════════════════════════

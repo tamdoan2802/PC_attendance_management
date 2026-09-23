@@ -123,11 +123,17 @@ class MisaAmisClient:
         if env_token:
             return env_token.strip()
 
-        if self.token_file.exists():
-            with open(self.token_file, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if content:
-                    return self.parse_token_string(content)
+        candidate_paths = [
+            self.token_file,
+            Path(__file__).parent.parent / ".token_misa",
+            Path(__file__).parent.parent.parent.parent.parent / "attendance reference" / "MisaSetup" / ".token_misa",
+        ]
+        for p in candidate_paths:
+            if p and p.exists():
+                with open(p, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                    if content:
+                        return self.parse_token_string(content)
 
         raise MisaAuthError(
             "No MISA AMIS session token found! Please set MISA_TOKEN or save your session cookies into .token_misa"
@@ -390,12 +396,33 @@ class MisaAmisClient:
                             except Exception:
                                 pass
 
+                        std_hours = 8.0
+                        if shift_code in ["WE08"]:
+                            std_hours = 6.0
+                        elif "WFH" in shift_code:
+                            std_hours = 3.5 if "WE07" in shift_code else (3.0 if "WE08" in shift_code else 8.0)
+
+                        # Credit working hours for business trip (Đi công tác)
+                        total_mission = float(s.get("TotalMissionAllowance", 0.0) or 0.0)
+                        if total_mission > 0:
+                            mission_hours = total_mission * std_hours
+                            if total_mission >= 1.0:
+                                actual_hours = max(actual_hours, mission_hours)
+                            else:
+                                actual_hours = max(actual_hours + mission_hours, mission_hours)
+
                         # Type of Date
                         is_wk = 1 if date_val.weekday() >= 5 else 0
 
                         type_date = "Absent"
                         tot_leave = float(s.get("TotalLeave", 0.0) or 0.0)
-                        if working_credit >= 1.0:
+                        tot_actual_work = float(s.get("TotalWorkingActual", 0.0) or 0.0)
+
+                        if total_mission > 0:
+                            type_date = "FullWorkDay" if (total_mission >= 1.0 or working_credit >= 1.0) else "PartialWorkDay"
+                        elif tot_leave >= 1.0 and tot_actual_work == 0:
+                            type_date = "Leave"
+                        elif working_credit >= 1.0:
                             type_date = "FullWorkDay"
                         elif working_credit > 0:
                             type_date = "PartialWorkDay"
@@ -403,12 +430,6 @@ class MisaAmisClient:
                             type_date = "Leave"
                         elif is_wk == 1:
                             type_date = "Weekend"
-
-                        std_hours = 8.0
-                        if shift_code in ["WE08"]:
-                            std_hours = 6.0
-                        elif "WFH" in shift_code:
-                            std_hours = 3.5 if "WE07" in shift_code else (3.0 if "WE08" in shift_code else 8.0)
 
                         records.append({
                             "Employee_ID": emp_id,

@@ -164,10 +164,13 @@ def parse_cell(cell_value):
                 l_cred = float(m_leave.group(2))
             except ValueError:
                 l_cred = 0.5
-            # Distinguish leave vs second shift
+            # Distinguish leave vs business trip vs second shift
             if any(k in l_name for k in ['Nghỉ', 'Nghi', 'BHXH', 'phép', 'bù']):
                 res['leave_type'] = l_name
                 res['leave_credit'] = l_cred
+            elif any(k in l_name.lower() for k in ['công tác', 'cong tac']):
+                res['mission_credit'] = l_cred
+                res['is_mission'] = True
             elif l_name in SHIFT_CATALOG:
                 # Split shift additional session
                 pass
@@ -335,10 +338,20 @@ def parse_timesheet_file(file_path, target_start_date=None, target_end_date=None
                 is_holiday=is_holiday, holiday_name=holiday_name
             )
             
+            # Credit business trip working hours (Đi công tác)
+            if parsed.get('mission_credit', 0) > 0:
+                metrics['actual_hours'] = max(metrics['actual_hours'], parsed['mission_credit'] * metrics['std_hours'])
+            
             # Type of date classification
             work_credit = parsed['shift_credit']
             if is_holiday:
                 type_of_date = 'Holiday'
+                working_credit = 1.0
+            elif parsed.get('mission_credit', 0) >= 1.0:
+                type_of_date = 'FullWorkDay'
+                working_credit = 1.0
+            elif parsed.get('mission_credit', 0) > 0:
+                type_of_date = 'HalfWorkDay'
                 working_credit = 1.0
             elif parsed['leave_credit'] >= 1.0:
                 type_of_date = 'FullLeave'
