@@ -645,6 +645,9 @@ def load_all_raw_data(source="api"):
 
         try:
             client = MisaAmisClient()
+            src = getattr(client, "_token_source", "Unknown")
+            masked_sid = (client.session_id[:6] + "..." + client.session_id[-4:]) if len(client.session_id) > 10 else "None"
+            print(f"  -> MISA Session loaded from: {src} (Session: {masked_sid})")
             api_dfs = client.get_attendance_dataframes()
         except MisaAuthError as e:
             print("\n" + "=" * 70)

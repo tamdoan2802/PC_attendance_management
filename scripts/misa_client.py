@@ -158,8 +158,9 @@ class MisaAmisClient:
     def _load_token(self) -> str:
         """Load session cookie from environment variable or local .token_misa file."""
         env_token = os.environ.get("MISA_TOKEN")
-        if env_token:
-            return env_token.strip()
+        if env_token and env_token.strip():
+            self._token_source = "Environment variable [MISA_TOKEN]"
+            return self.parse_token_string(env_token)
 
         candidate_paths = [
             self.token_file,
@@ -171,6 +172,7 @@ class MisaAmisClient:
                 with open(p, "r", encoding="utf-8") as f:
                     content = f.read().strip()
                     if content:
+                        self._token_source = f"Local file [{p}]"
                         return self.parse_token_string(content)
 
         raise MisaAuthError(
@@ -179,17 +181,31 @@ class MisaAmisClient:
 
     @staticmethod
     def parse_token_string(raw_input: str) -> str:
-        """Extract cookie string from raw string or cURL command."""
+        """Extract cookie string from raw string, cURL command, or hex session ID."""
         raw_input = raw_input.strip()
 
-        # Case 1: cURL command containing -b '...' or -H 'Cookie: ...'
-        cookie_match = re.search(r"(?:-b|-H\s+['\"]Cookie:)\s+['\"]([^'\"]+)['\"]", raw_input, re.IGNORECASE)
-        if cookie_match:
-            return cookie_match.group(1).strip()
+        # Strip wrapping quotes if any
+        if (raw_input.startswith('"') and raw_input.endswith('"')) or (raw_input.startswith("'") and raw_input.endswith("'")):
+            raw_input = raw_input[1:-1].strip()
 
-        # Case 2: Raw Cookie string containing x-sessionid=
+        # Case 1: cURL command containing -b '...' or -H 'Cookie: ...'
+        cookie_match = re.search(r'(?:-b|-H\s+[\'"]?Cookie:)\s+[\'"]?([^;\'"\r\n]+(?:;[^;\'"\r\n]+)*)[\'"]?', raw_input, re.IGNORECASE)
+        if cookie_match:
+            return cookie_match.group(1).strip().strip('"\'')
+
+        # Case 2: Contains 'Cookie: ...'
+        c_hdr = re.search(r'Cookie:\s*([^\r\n]+)', raw_input, re.IGNORECASE)
+        if c_hdr:
+            return c_hdr.group(1).strip().strip('"\'')
+
+        # Case 3: Raw Cookie string containing x-sessionid=
         if "x-sessionid=" in raw_input:
             return raw_input
+
+        # Case 4: Hex sessionid only (32-64 hex chars)
+        hex_match = re.fullmatch(r'[a-fA-F0-9]{32,64}', raw_input)
+        if hex_match:
+            return f"x-sessionid={raw_input}; x-tenantid=08e43183-ae7e-4808-9548-00f777c5a3b2"
 
         return raw_input
 
