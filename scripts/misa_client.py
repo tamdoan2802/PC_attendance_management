@@ -11,6 +11,7 @@ import os
 import sys
 import re
 import json
+import time
 import base64
 import urllib.request
 import urllib.error
@@ -102,7 +103,11 @@ COLUMNS_MAP = {
 }
 
 class MisaAuthError(Exception):
-    """Raised when MISA authentication fails or session expires."""
+    """Raised when MISA authentication fails or session expires (HTTP 401/403)."""
+    pass
+
+class MisaNetworkError(Exception):
+    """Raised when network connection to MISA fails after all retries."""
     pass
 
 class MisaAmisClient:
@@ -116,6 +121,39 @@ class MisaAmisClient:
         
         self.cookie_string = self._load_token()
         self.session_id, self.tenant_id = self._extract_session_headers(self.cookie_string)
+        self._init_session()
+
+    def _init_session(self):
+        """Initialize requests.Session with connection pooling and retry adapter."""
+        try:
+            import requests
+            from requests.adapters import HTTPAdapter
+            from urllib3.util.retry import Retry
+
+            self.session = requests.Session()
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1.5,
+                status_forcelist=[500, 502, 503, 504],
+                raise_on_status=False
+            )
+            adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=5, pool_maxsize=10)
+            self.session.mount("https://", adapter)
+            self.session.mount("http://", adapter)
+            self.session.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0",
+                "Cookie": self.cookie_string,
+                "x-sessionid": self.session_id,
+                "x-tenantid": self.tenant_id,
+                "x-tenantsource": "AMIS",
+                "Content-Type": "application/json; charset=UTF-8",
+                "Accept": "application/json, text/plain, */*",
+                "Connection": "keep-alive",
+            })
+            self._use_requests = True
+        except ImportError:
+            self.session = None
+            self._use_requests = False
 
     def _load_token(self) -> str:
         """Load session cookie from environment variable or local .token_misa file."""
@@ -162,6 +200,7 @@ class MisaAmisClient:
         self.session_id, self.tenant_id = self._extract_session_headers(parsed)
         with open(self.token_file, "w", encoding="utf-8") as f:
             f.write(parsed)
+        self._init_session()
         print("MISA AMIS session token updated successfully!")
         return parsed
 
@@ -183,42 +222,75 @@ class MisaAmisClient:
         payload: Optional[Dict[str, Any]] = None,
         method: str = "POST",
         timeout: int = 45,
+        max_retries: int = 3,
     ) -> Dict[str, Any]:
-        """Execute authenticated HTTPS request against MISA AMIS API."""
+        """Execute authenticated HTTPS request against MISA AMIS API with auto-retries and Keep-Alive."""
         url = f"{BASE_URL}/{endpoint}"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0",
-            "Cookie": self.cookie_string,
-            "x-sessionid": self.session_id,
-            "x-tenantid": self.tenant_id,
-            "x-tenantsource": "AMIS",
-            "Content-Type": "application/json; charset=UTF-8",
-            "Accept": "application/json, text/plain, */*",
-        }
 
-        data = json.dumps(payload).encode("utf-8") if payload is not None else None
-        req = urllib.request.Request(url, data=data, headers=headers, method=method)
-
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                raw = resp.read().decode("utf-8")
-                return json.loads(raw)
-        except urllib.error.HTTPError as e:
-            if e.code in (401, 403):
-                raise MisaAuthError(
-                    f"MISA AMIS Session Token has expired or is invalid (HTTP {e.code}).\n"
-                    "How to refresh (10 seconds):\n"
-                    "1. Open Chrome/Edge and log into https://amisapp.misa.vn\n"
-                    "2. Press F12 -> Network tab -> click any request\n"
-                    "3. Right-click -> Copy -> Copy as cURL (bash)\n"
-                    "4. Run: client.update_token('PASTE_CURL_HERE') or save to attendance reference/MisaSetup/.token_misa"
-                ) from e
-            err_body = ""
+        for attempt in range(max_retries):
             try:
-                err_body = e.read().decode("utf-8")
-            except Exception:
-                pass
-            raise RuntimeError(f"HTTP Error {e.code} on {endpoint}: {err_body}") from e
+                if self._use_requests and self.session:
+                    if method.upper() == "POST":
+                        resp = self.session.post(url, json=payload, timeout=timeout)
+                    else:
+                        resp = self.session.get(url, params=payload, timeout=timeout)
+
+                    if resp.status_code in (401, 403):
+                        raise MisaAuthError(
+                            f"MISA AMIS Session Token đã hết hạn hoặc không hợp lệ (HTTP {resp.status_code}).\n"
+                            "Cách cập nhật Token (mất 10 giây):\n"
+                            "1. Mở Chrome/Edge đăng nhập vào https://amisapp.misa.vn\n"
+                            "2. Nhấn F12 -> tab Network -> click 1 request bất kỳ\n"
+                            "3. Chuột phải -> Copy -> Copy as cURL (bash)\n"
+                            "4. Cập nhật vào GitHub Secret MISA_TOKEN hoặc file .token_misa trên máy"
+                        )
+                    if not resp.ok:
+                        raise RuntimeError(f"HTTP Error {resp.status_code} on {endpoint}: {resp.text[:300]}")
+                    return resp.json()
+
+                else:
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0",
+                        "Cookie": self.cookie_string,
+                        "x-sessionid": self.session_id,
+                        "x-tenantid": self.tenant_id,
+                        "x-tenantsource": "AMIS",
+                        "Content-Type": "application/json; charset=UTF-8",
+                        "Accept": "application/json, text/plain, */*",
+                        "Connection": "keep-alive",
+                    }
+                    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+                    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+                    with urllib.request.urlopen(req, timeout=timeout) as resp:
+                        raw = resp.read().decode("utf-8")
+                        return json.loads(raw)
+
+            except MisaAuthError:
+                raise
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403):
+                    raise MisaAuthError(
+                        f"MISA AMIS Session Token đã hết hạn hoặc không hợp lệ (HTTP {e.code}).\n"
+                        "Cách cập nhật Token (mất 10 giây):\n"
+                        "1. Mở Chrome/Edge đăng nhập vào https://amisapp.misa.vn\n"
+                        "2. Nhấn F12 -> tab Network -> click 1 request bất kỳ\n"
+                        "3. Chuột phải -> Copy -> Copy as cURL (bash)\n"
+                        "4. Cập nhật vào GitHub Secret MISA_TOKEN hoặc file .token_misa trên máy"
+                    ) from e
+                if attempt == max_retries - 1:
+                    raise RuntimeError(f"HTTP Error {e.code} on {endpoint}") from e
+                time.sleep(2 * (attempt + 1))
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_s = 2 * (attempt + 1)
+                    print(f"  [RETRY {attempt+1}/{max_retries}] Kết nối MISA API {endpoint} bị gián đoạn ({type(e).__name__}: {e}). Thử lại sau {wait_s}s...")
+                    time.sleep(wait_s)
+                else:
+                    raise MisaNetworkError(
+                        f"Không thể kết nối đến máy chủ MISA AMIS ({endpoint}) sau {max_retries} lần thử!\n"
+                        f"Chi tiết lỗi mạng: {type(e).__name__} - {e}\n"
+                        "Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau."
+                    ) from e
 
     # ═══════════════════════════════════════════════════════════════
     # DOMAIN METHODS
