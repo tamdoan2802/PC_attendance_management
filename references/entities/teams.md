@@ -9,7 +9,7 @@
 
 * **Team Leader:** Quang Tra
 
-* **Total Members:** 15
+* **Total Members:** 16
 
 
 
@@ -27,11 +27,12 @@
 |MTVN0035|**Quyn Do**|Đỗ Quyn|Drafter|
 |MTVN0036|**Thanh Tran**|Trần Nhật Thành|Drafter|
 |MTVN0043|**Nguyen Nguyen**|Nguyễn Anh Nguyên|Drafter|
-|MTVN0084|**Phat Le**|Lê Tiến Phát|Drafter|
 |MTVN0085|**Son Ho**|Hồ Thái Sơn|Drafter|
 |MTVN0087|**Trung2 Nguyen**|Nguyễn Hoàng Trung|Drafter|
 |MTVN0090|**Nam Nguyen**|Nguyễn Tuấn Nam|Drafter|
 |MTVN0091|**Nhan Nguyen**|Nguyễn Triệu Nhân|Drafter|
+|MTVN-HCM0029|**Nam Le**|Lê Hải Nam|Drafter|
+|MTVN-HCM0030|**Hoang Nguyen**|Nguyễn Phước Hoàng|Drafter|
 
 \---
 
@@ -107,7 +108,7 @@
 
 * **Team Leader:** Phuong Tran (Senior Admin Leader), Vi Tran (Branch Support Leader), Bich Nguyen (Logistics Leader)
 
-* **Total Members:** 16
+* **Total Members:** 17
 
 
 
@@ -131,6 +132,7 @@
 |MTVN0089|**Ngan Vo**|Võ Thị Hồng Ngân|Administrator|
 |MTVN0092|**Tram Hoang**|Hoàng Thị Bích Trâm|Senior Logistics Officer|
 |MTVN0093|**Han2 Pham**|Phạm Lê Minh Hân|Administrator|
+|MTVN0100|**Huy Tran**|Trần Nam Huy|Administrator|
 
 \---
 
@@ -203,7 +205,7 @@
 
 * **Team Leader:** Chau Ha (People \& Culture Manager)
 
-* **Total Members:** 5
+* **Total Members:** 6
 
 
 
@@ -216,6 +218,7 @@
 |MTVN0062|**Chau Ha**|Hà Vi Châu|People \& Culture Manager|
 |MTVN0065|**Long Nguyen**|Nguyễn Đức Long|Full-Stack Developer|
 |MTVN0070|**Tam Doan**|Đoàn Tâm|Senior People \& Culture Officer|
+|MTVN0099|**Phat Nguyen**|Nguyễn Tấn Phát|IT Support|
 
 \---
 
