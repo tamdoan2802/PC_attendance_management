@@ -246,7 +246,7 @@ def load_master_employees_from_entities(legacy_emp_df=None):
                 if not line.strip().startswith("|"): continue
                 parts = [p.strip() for p in line.strip().split("|")[1:-1]]
                 if not parts or all(set(p).issubset({'-', ':', ' '}) for p in parts) or "---" in parts[0] or "Employee ID" in parts[0]: continue
-                clean = [p.replace("`", "").replace("**", "").strip() for p in parts]
+                clean = [p.replace("`", "").replace("**", "").replace("\\&", "&").strip() for p in parts]
                 if len(clean) >= 9 and clean[0].startswith("MTVN"):
                     emp_meta[clean[0]] = {
                         "FullNameVN": clean[1],
@@ -269,14 +269,14 @@ def load_master_employees_from_entities(legacy_emp_df=None):
         
         fn_en = m.get("full_name_en") or e.get("FullNameEN") or l.get("FullNameEN") or ""
         fn_vn = m.get("emp_name_vn") or e.get("FullNameVN") or l.get("FullNameVN") or ""
-        team = m.get("team") or l.get("Team") or ""
-        client = m.get("customer_group") or l.get("Client") or ""
+        team = str(m.get("team") or l.get("Team") or "").replace("\\&", "&").strip()
+        client = str(m.get("customer_group") or l.get("Client") or "").replace("\\&", "&").strip()
         loc = e.get("Location") or l.get("Location") or "Da Nang"
         pos = e.get("Position") or l.get("Position") or ""
         role = l.get("Role in Team") or "Member"
         
-        stat = e.get("Status", "Active")
-        if any(k in str(stat).lower() for k in ["resigned", "terminated", "inactive"]):
+        stat = str(e.get("Status", "Active")).strip()
+        if any(k in stat.lower() for k in ["resigned", "terminated", "inactive"]):
             active = 0
         else:
             active = safe_int(l.get("IsActive", 1), default=1)
@@ -291,10 +291,12 @@ def load_master_employees_from_entities(legacy_emp_df=None):
             "Client": client,
             "Location": loc,
             "Position": pos,
+            "Status": stat,
             "IsActive": active
         })
     df_emp = pd.DataFrame(emp_rows)
-    print(f"  OK Master DIM_Employee built from entities ({len(df_emp):,} employees, {len(df_emp[df_emp['IsActive'] == 1]):,} active)")
+    resigned_cnt = int(df_emp["Status"].astype(str).str.lower().str.contains("resigned", na=False).sum()) if not df_emp.empty else 0
+    print(f"  OK Master DIM_Employee built from entities ({len(df_emp):,} employees, {len(df_emp[df_emp['IsActive'] == 1]):,} active, {resigned_cnt} resigned)")
     return df_emp
 
 def load_live_requests(raw):
@@ -728,12 +730,33 @@ def preprocess(raw):
                     if hasattr(raw[k][c].dt, "tz") and raw[k][c].dt.tz is not None:
                         raw[k][c] = raw[k][c].dt.tz_localize(None)
 
+    # -- DIM_Employee ---------------------------------------
+    emp = raw["DIM_Employee"].copy()
+    emp["EmployeeID"] = emp["EmployeeID"].astype(str).str.strip()
+    emp["IsActive"]   = pd.to_numeric(emp["IsActive"], errors="coerce").fillna(0).astype(int)
+    if "Status" not in emp.columns:
+        emp["Status"] = emp["IsActive"].apply(lambda x: "Active" if x == 1 else "Inactive")
+
+    # Identify and exclude all Resigned employees from the ENTIRE dashboard
+    resigned_ids = set(
+        emp.loc[
+            emp["Status"].astype(str).str.strip().str.lower().str.contains("resigned", na=False),
+            "EmployeeID"
+        ]
+    )
+    excluded_total_eff = EXCLUDED_TOTAL | resigned_ids
+    excluded_att_eff = EXCLUDED_ALL_ATTENDANCE | resigned_ids
+    if resigned_ids:
+        print(f"  OK Excluding {len(resigned_ids)} Resigned employee(s) from entire dashboard: {sorted(resigned_ids)}")
+
+    emp = emp[~emp["EmployeeID"].isin(excluded_total_eff)]
+
     # -- FACT_Attendance_Daily ------------------------------
     att = raw["FACT_Attendance_Daily"].copy()
     att["Date_Text"]  = pd.to_datetime(att["Date_Text"],  errors="coerce")
     att["Is_Weekend"] = pd.to_numeric(att["Is_Weekend"],  errors="coerce").fillna(1).astype(int)
     att["Employee_ID"] = att["Employee_ID"].astype(str).str.strip()
-    att = att[~att["Employee_ID"].isin(EXCLUDED_ALL_ATTENDANCE)]
+    att = att[~att["Employee_ID"].isin(excluded_att_eff)]
 
     num_cols_att = [
         "Late_CI (mins)", "Early_CI (mins)", "Early_CO (mins)", "Late_CO (mins)",
@@ -746,12 +769,6 @@ def preprocess(raw):
 
     # normalise Week Period (strip stray spaces)
     att["Week Period"] = att["Week Period"].astype(str).str.strip()
-
-    # -- DIM_Employee ---------------------------------------
-    emp = raw["DIM_Employee"].copy()
-    emp["EmployeeID"] = emp["EmployeeID"].astype(str).str.strip()
-    emp["IsActive"]   = pd.to_numeric(emp["IsActive"], errors="coerce").fillna(0).astype(int)
-    emp = emp[~emp["EmployeeID"].isin(EXCLUDED_TOTAL)]
 
     # -- Req_Leave -----------------------------------------
     leave = raw["Req_Leave"].copy()
@@ -780,7 +797,7 @@ def preprocess(raw):
             leave["Week Period"] = leave["Week Period"].astype(str).str.strip()
         else:
             leave["Week Period"] = leave["Leave_From"].apply(date_to_week_period)
-        leave = leave[~leave["Employee_ID"].isin(EXCLUDED_TOTAL)]
+        leave = leave[~leave["Employee_ID"].isin(excluded_total_eff)]
 
     # -- Req_OT --------------------------------------------
     ot = raw["Req_OT"].copy()
@@ -798,7 +815,7 @@ def preprocess(raw):
             ot["Week Period"] = ot["Week Period"].astype(str).str.strip()
         else:
             ot["Week Period"] = ot["_ot_date"].apply(date_to_week_period)
-        ot = ot[~ot["Employee_ID"].isin(EXCLUDED_TOTAL)]
+        ot = ot[~ot["Employee_ID"].isin(excluded_total_eff)]
 
     # -- Req_WFh -------------------------------------------
     wfh = raw["Req_WFh"].copy()
@@ -820,7 +837,7 @@ def preprocess(raw):
             wfh["Week Period"] = wfh["Week Period"].astype(str).str.strip()
         else:
             wfh["Week Period"] = wfh["WFH_From"].apply(date_to_week_period)
-        wfh = wfh[~wfh["Employee_ID"].isin(EXCLUDED_TOTAL)]
+        wfh = wfh[~wfh["Employee_ID"].isin(excluded_total_eff)]
 
     # -- Req_LCin&ECout ------------------------------------
     lcec = raw["Req_LCin&ECout"].copy()
@@ -840,7 +857,7 @@ def preprocess(raw):
             m3 = pd.to_numeric(lcec["Về sớm giữa ca"], errors="coerce").fillna(0) if "Về sớm giữa ca" in lcec.columns else 0
             m4 = pd.to_numeric(lcec["Về sớm cuối ca"], errors="coerce").fillna(0) if "Về sớm cuối ca" in lcec.columns else 0
             lcec["Minutes"] = m1 + m2 + m3 + m4
-        lcec = lcec[~lcec["Employee_ID"].isin(EXCLUDED_TOTAL)]
+        lcec = lcec[~lcec["Employee_ID"].isin(excluded_total_eff)]
 
     # -- Req_BusinessTrip ----------------------------------
     trip = raw["Req_BusinessTrip"].copy()
@@ -854,7 +871,7 @@ def preprocess(raw):
             trip["Week Period"] = trip["Week Period"].astype(str).str.strip()
         else:
             trip["Week Period"] = trip["Trip_From"].apply(date_to_week_period)
-        trip = trip[~trip["Employee_ID"].isin(EXCLUDED_TOTAL)]
+        trip = trip[~trip["Employee_ID"].isin(excluded_total_eff)]
 
     # -- Req_ShiftChange -----------------------------------
     sc = raw["Req_ShiftChange"].copy()
@@ -866,7 +883,7 @@ def preprocess(raw):
             sc["Week Period"] = sc["Week Period"].astype(str).str.strip()
         else:
             sc["Week Period"] = sc["Work_Date"].apply(date_to_week_period)
-        sc = sc[~sc["Employee_ID"].isin(EXCLUDED_TOTAL)]
+        sc = sc[~sc["Employee_ID"].isin(excluded_total_eff)]
 
     # -- Propagate Master Data across all tables --
     master_map = emp.set_index("EmployeeID").to_dict("index")
@@ -1002,7 +1019,7 @@ def build_emp_lookup(emp, scopes):
 
 def att_scope(att_week, emp_ids, team_scope, client_scope):
     df = att_week
-    if emp_ids:
+    if emp_ids is not None:
         df = df[df["Employee_ID"].isin(emp_ids)]
     if team_scope != "All Teams":
         df = df[df["DIM_Employee.Team"] == team_scope]
@@ -1012,7 +1029,7 @@ def att_scope(att_week, emp_ids, team_scope, client_scope):
 
 def req_scope(df, emp_ids, team_scope, dept_col="Department"):
     """Filter a request DF to the scope via employee-ID set + optional team column."""
-    out = df[df["Employee_ID"].isin(emp_ids)] if emp_ids else df
+    out = df[df["Employee_ID"].isin(emp_ids)] if emp_ids is not None else df
     if team_scope != "All Teams":
         if "DIM_Employee.Team" in out.columns:
             out = out[out["DIM_Employee.Team"] == team_scope]
@@ -1678,6 +1695,11 @@ def build_dash_data(proc, scopes, week_ranges):
     def build_attendance_dashboard(att, emp, leave, week_ranges):
         import random
         import pandas as pd
+
+        # Restrict Attendance Dashboard strictly to active employees (excludes Resigned/Inactive/unmapped)
+        active_eids = set(emp.loc[emp["IsActive"] == 1, "EmployeeID"].astype(str).str.strip())
+        att = att[att["Employee_ID"].isin(active_eids)].copy() if not att.empty else att
+        leave = leave[leave["Employee_ID"].isin(active_eids)].copy() if not leave.empty else leave
         
         # 1. Absences
         absences = []

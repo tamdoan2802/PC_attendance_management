@@ -55,7 +55,7 @@ def load_master_entities(routing_map_file=ROUTING_MAP_FILE):
             if headers is None:
                 headers = parts
             else:
-                clean_parts = [p.replace('`', '').replace('**', '').strip() for p in parts]
+                clean_parts = [p.replace('`', '').replace('**', '').replace('\\&', '&').strip() for p in parts]
                 if len(clean_parts) == len(headers) and clean_parts[0].startswith('MTVN'):
                     rows.append(clean_parts)
                     

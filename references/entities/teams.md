@@ -2,257 +2,263 @@
 
 > Defines production operations teams, operational support teams, and internal workforce structure (Team Leaders, member roles).
 
-\---
+---
 
 ## Drafting Team (drafting)
 
 
-* **Team Leader:** Quang Tra
 
-* **Total Members:** 16
+* **Team Leader:** Quang Tra
+* **Total Members:** 20
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN-HCM0021|**Hong Bui**|Bùi Thị Kim Hồng|Drafter|
-|MTVN-HCM0025|**Hiep Tran**|Trần Quốc Hiệp|Drafter|
-|MTVN-HCM0028|**Nhien Cao**|Cao Lý Hồng Nhiên|Drafter|
-|MTVN0004|**Hung Tran**|Trần Khánh Hưng|Drafter|
-|MTVN0008|**Quang Tra**|Trà Minh Quang|Leader|
-|MTVN0010|**Anh Nguyen**|Nguyễn Lê Quốc Anh|Drafter|
-|MTVN0029|**Quy Vo**|Võ Văn Phú Quý|Drafter|
-|MTVN0035|**Quyn Do**|Đỗ Quyn|Drafter|
-|MTVN0036|**Thanh Tran**|Trần Nhật Thành|Drafter|
-|MTVN0043|**Nguyen Nguyen**|Nguyễn Anh Nguyên|Drafter|
-|MTVN0085|**Son Ho**|Hồ Thái Sơn|Drafter|
-|MTVN0087|**Trung2 Nguyen**|Nguyễn Hoàng Trung|Drafter|
-|MTVN0090|**Nam Nguyen**|Nguyễn Tuấn Nam|Drafter|
-|MTVN0091|**Nhan Nguyen**|Nguyễn Triệu Nhân|Drafter|
-|MTVN-HCM0029|**Nam Le**|Lê Hải Nam|Drafter|
-|MTVN-HCM0030|**Hoang Nguyen**|Nguyễn Phước Hoàng|Drafter|
+|-|-|
+|MTVN-HCM0021|**Hong Bui**|
+|MTVN-HCM0025|**Hiep Tran**|
+|MTVN-HCM0028|**Nhien Cao**|
+|MTVN0004|**Hung Tran**|
+|MTVN0008|**Quang Tra**|
+|MTVN0010|**Anh Nguyen**|
+|MTVN0029|**Quy Vo**|
+|MTVN0035|**Quyn Do**|
+|MTVN0036|**Thanh Tran**|
+|MTVN0043|**Nguyen Nguyen**|
+|MTVN0085|**Son Ho**|
+|MTVN0087|**Trung2 Nguyen**|
+|MTVN0090|**Nam Nguyen**|
+|MTVN0091|**Nhan Nguyen**|
+|MTVN0101|**Vinh Le**|
+|MTVN-HCM0029|**Nam Le**|
+|MTVN-HCM0030|**Hoang Nguyen**|
+|MTVN0048|**Phuoc Vo**|
+|MTVN0102|**Luc Huynh**|
 
-\---
+---
 
-## Frame \& Truss Team (frame\_truss)
+## Frame & Truss Team (frame_truss)
+
 
 
 * **Team Leader:** Linh2 Nguyen
-
 * **Total Members:** 7
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN-HCM0018|**Linh2 Nguyen**|Nguyễn Duy Linh|Leader|
-|MTVN-HCM0019|**Khang Ngo**|Ngô Đặng Hoàng Khang|Designer|
-|MTVN-HCM0020|**Viet Nguyen**|Nguyễn Quốc Việt|Designer|
-|MTVN0040|**Han Pham**|Phạm Thị Ngọc Hân|Designer|
-|MTVN0069|**Quy Nguyen**|Nguyễn Văn Vĩnh Qúy|Designer|
-|MTVN0077|**Phuc Nguyen**|Nguyễn Trung Phúc|Designer|
-|MTVN0097|**Trung Vo**|Võ Thị Trung|Detailer|
+|-|-|
+|MTVN-HCM0018|**Linh2 Nguyen**|
+|MTVN-HCM0019|**Khang Ngo**|
+|MTVN-HCM0020|**Viet Nguyen**|
+|MTVN0040|**Han Pham**|
+|MTVN0069|**Quy Nguyen**|
+|MTVN0077|**Phuc Nguyen**|
+|MTVN0097|**Trung Vo**|
 
-\---
+---
 
 ## Cleveland Team (cleveland)
 
 
-* **Team Leader:** Truong Le
 
-* **Total Members:** 5
-
-
-
-|Employee ID|English Name|Vietnamese Name|Role in Team|
-
-|-|-
-|-|-|
-|MTVN0049|**Truong Le**|Lê Quang Trường|Leader|
-|MTVN0061|**Duy Vuong**|Vương Khương Duy|Estimator|
-|MTVN0073|**Thuy Le**|Lê Thị Thu Thủy|Designer|
-|MTVN0082|**Quy Le**|Lê Thị Kim Quý|Estimator|
-|MTVN0086|**Trinh Phan**|Phan Nguyễn Thục Trinh|Designer|
-
-\---
-
-## Estimating Team (estimating)
-
-
-* **Team Leader:** Thanh Nguyen
-
+* **Team Leader:** Truong Le (báo cáo Tam Doan)
 * **Total Members:** 7
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN-HCM0027|**Thanh Hoang**|Hoàng Ngọc Phương Thanh|Estimator|
-|MTVN0001|**Tram Huynh**|Huỳnh Thị Bích Trâm|Estimator|
-|MTVN0020|**Trung Nguyen**|Nguyễn Quốc Trung|Estimator|
-|MTVN0031|**Thanh Nguyen**|Nguyễn Đức Thành|Leader|
-|MTVN0033|**Trang Dang**|Đặng Thị Trang|Estimator|
-|MTVN0034|**Thuy2 Tran**|Trần Thị Thanh Thủy|Estimator|
-|MTVN0041|**Huy Huynh**|Huỳnh Ngọc Anh Huy|Estimator|
+|-|-|
+|MTVN0049|**Truong Le**|
+|MTVN0061|**Duy Vuong**|
+|MTVN0073|**Thuy Le**|
+|MTVN0082|**Quy Le**|
+|MTVN0086|**Trinh Phan**|
+|MTVN-QT0001|**Duong Mai**|
+|MTVN-QT0003|**Hung2 Nguyen**|
 
-\---
+---
+
+## Estimating Team (estimating)
+
+
+
+* **Team Leader:** Thanh Nguyen
+* **Total Members:** 7
+
+
+
+|Employee ID|English Name|Vietnamese Name|Role in Team|
+
+|-|-|
+|-|-|
+|MTVN-HCM0027|**Thanh Hoang**|
+|MTVN0001|**Tram Huynh**|
+|MTVN0020|**Trung Nguyen**|
+|MTVN0031|**Thanh Nguyen**|
+|MTVN0033|**Trang Dang**|
+|MTVN0034|**Thuy2 Tran**|
+|MTVN0041|**Huy Huynh**|
+
+---
 
 ## Admin Team (admin)
 
 
-* **Team Leader:** Phuong Tran (Senior Admin Leader), Vi Tran (Branch Support Leader), Bich Nguyen (Logistics Leader)
 
-* **Total Members:** 17
+* **Team Leader:** Phuong Tran (Senior Admin Leader), Vi Tran (Branch Support Leader), Bich Nguyen (Logistics Leader)
+* **Total Members:** 19
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN-HCM0005|**Linh Ho**|Hồ Ánh Linh|Logistics Support|
-|MTVN-HCM0006|**Buu Do**|Đỗ Trinh Bửu|Logistics Support|
-|MTVN-HCM0007|**Vi Tran**|Trần Ngọc Đoan Vi|Branch Support Team Leader|
-|MTVN-HCM0016|**Bich Nguyen**|Nguyễn Thị Bích|Logistic Team Leader|
-|MTVN0037|**Toan Mai**|Mai Phước Toàn|Logistics Coordinator|
-|MTVN0047|**Thuy Vo**|Võ Thị Thuỷ|Administrator|
-|MTVN0051|**Uyen2 Le**|Lê Nguyễn Hoàng Uyên|Administrator|
-|MTVN0052|**Phuong Tran**|Trần Huy Nguyễn Nam Phương|Senior Administration Team Leader|
-|MTVN0063|**Ngoc2 Tran**|Trần Nguyễn Bảo Ngọc|Administrator|
-|MTVN0064|**Thao Le**|Lê Phương Thảo|Administrator|
-|MTVN0066|**Huyen Le**|Lê Phan Ngọc Huyền|Logistics Operations Support Officer|
-|MTVN0078|**Hien Ho**|Hồ Mỹ Hiền|Logistics Officer|
-|MTVN0083|**Linh3 Nguyen**|Nguyễn Đỗ Diệu Linh|Document Processing and Communications Coordinator|
-|MTVN0089|**Ngan Vo**|Võ Thị Hồng Ngân|Administrator|
-|MTVN0092|**Tram Hoang**|Hoàng Thị Bích Trâm|Senior Logistics Officer|
-|MTVN0093|**Han2 Pham**|Phạm Lê Minh Hân|Administrator|
-|MTVN0100|**Huy Tran**|Trần Nam Huy|Administrator|
+|-|-|
+|MTVN-HCM0005|**Linh Ho**|
+|MTVN-HCM0006|**Buu Do**|
+|MTVN-HCM0007|**Vi Tran**|
+|MTVN-HCM0016|**Bich Nguyen**|
+|MTVN0037|**Toan Mai**|
+|MTVN0047|**Thuy Vo**|
+|MTVN0051|**Uyen2 Le**|
+|MTVN0052|**Phuong Tran**|
+|MTVN0063|**Ngoc2 Tran**|
+|MTVN0064|**Thao Le**|
+|MTVN0066|**Huyen Le**|
+|MTVN0078|**Hien Ho**|
+|MTVN0083|**Linh3 Nguyen**|
+|MTVN0089|**Ngan Vo**|
+|MTVN0092|**Tram Hoang**|
+|MTVN0093|**Han2 Pham**|
+|MTVN0100|**Huy Tran**|
+|MTVN-QT0004|**Ngoc Nguyen**|
 
-\---
+---
 
-## Finance - Accounting Team (finance\_accounting)
+## Finance - Accounting Team (finance_accounting)
+
 
 
 * **Team Leader:** Thuy Huynh (Finance Business Partner) / Quan Nguyen (Senior Accountant)
-
-* **Total Members:** 8
+* **Total Members:** 9
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN-HCM0002|**Thuy Tran (Accountant)**|Trần Nguyễn Diễm Thúy|Accountant|
-|MTVN-HCM0003|**Tho Nguyen**|Nguyễn Thị Thơ|Accountant|
-|MTVN-HCM0004|**Thuy Huynh**|Huỳnh Minh Thùy|Finance Business Partner|
-|MTVN0016|**Phuong Nguyen**|Nguyễn Đức Hoàng Phương|Account Officer|
-|MTVN0067|**Quan Nguyen**|Nguyễn Tấn Quân|Senior Accountant|
-|MTVN0071|**Huyen Vo**|Võ Thị Khánh Huyền|Account Officer|
-|MTVN0075|**Ha Le**|Lê Song Minh Hạ|Account Officer|
-|MTVN0080|**Phuong Pham**|Phạm Huỳnh Yên Phương|Operations Generalist|
+|-|-|
+|MTVN-HCM0002|**Thuy Tran (Accountant)**|
+|MTVN-HCM0003|**Tho Nguyen**|
+|MTVN-HCM0004|**Thuy Huynh**|
+|MTVN0016|**Phuong Nguyen**|
+|MTVN0067|**Quan Nguyen**|
+|MTVN0071|**Huyen Vo**|
+|MTVN0075|**Ha Le**|
+|MTVN0080|**Phuong Pham**|
+|MTVN-QT0002|**Thy Hoang**|
 
-\---
+---
 
 ## HO Team (ho)
 
 
-* **Team Leader:** Nhieu Pham
 
+* **Team Leader:** Nhieu Pham
 * **Total Members:** 2
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN0054|**Nhieu Pham**|Phạm Ngọc Nhiều|Chief Accountant|
-|MTVN0079|**Ngoc Luu**|Lưu Thị Như Ngọc|Accounting \& Admin Officer|
+|-|-|
+|MTVN0054|**Nhieu Pham**|
+|MTVN0079|**Ngoc Luu**|
 
-\---
+---
 
-## EA/PA Team (ea\_pa)
+## EA/PA Team (ea_pa)
+
 
 
 * **Team Leader:** Thuy Ho (Senior Operations Support Specialist)
-
 * **Total Members:** 6
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN0024|**Huong Huynh**|Huỳnh Thị Hoài Hương|WorkFlow Admin|
-|MTVN0058|**Thuy Ho**|Hồ Thu Thủy|Senior Operations Support Specialist|
-|MTVN0081|**Han Nguyen**|Nguyễn Cao Bảo Hân|Business Operations Generalist|
-|MTVN0088|**Anh Hoang**|Hoàng Lê Minh Anh|Operations & Client Success Executive|
-|MTVN0094|**Linh Luu**|Lưu Thị Phương Linh|Business Support Coordinator|
-|MTVN0098|**Uyen Pham**|Phạm Ngọc Minh Uyên|Customer Services|
+|-|-|
+|MTVN0024|**Huong Huynh**|
+|MTVN0058|**Thuy Ho**|
+|MTVN0081|**Han Nguyen**|
+|MTVN0088|**Anh Hoang**|
+|MTVN0094|**Linh Luu**|
+|MTVN0098|**Uyen Pham**|
 
-\---
+---
 
-## PC IT Team (pc\_it)
+## PC IT Team (pc_it)
 
 
-* **Team Leader:** Chau Ha (People \& Culture Manager)
 
+* **Team Leader:** Chau Ha (People & Culture Manager)
 * **Total Members:** 6
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN0032|**Jane Le**|Lê Thị Duyên|Senior Talent Acquisition Officer|
-|MTVN0060|**Ai Tran**|Trần Thị Thúy Ái|Senior People \& Culture Officer|
-|MTVN0062|**Chau Ha**|Hà Vi Châu|People \& Culture Manager|
-|MTVN0065|**Long Nguyen**|Nguyễn Đức Long|Full-Stack Developer|
-|MTVN0070|**Tam Doan**|Đoàn Tâm|Senior People \& Culture Officer|
-|MTVN0099|**Phat Nguyen**|Nguyễn Tấn Phát|IT Support|
+|-|-|
+|MTVN0032|**Jane Le**|
+|MTVN0060|**Ai Tran**|
+|MTVN0062|**Chau Ha**|
+|MTVN0065|**Long Nguyen**|
+|MTVN0070|**Tam Doan**|
+|MTVN0099|**Phat Nguyen**|
 
-\---
+---
 
-## Tilling DC Team (tilling\_dc)
+## Tilling DC Team (tilling_dc)
+
 
 
 * **Team Leader:** Hao Pham Thai (Operations Manager HCM), Hung Nguyen (Team Leader), Hoc Nguyen (Team Leader)
-
 * **Total Members:** 18
 
 
 
 |Employee ID|English Name|Vietnamese Name|Role in Team|
 
-|-|-
 |-|-|
-|MTVN-HCM0008|**Hao Pham Thai**|Phạm Thái Hảo|Design Centre Manager|
-|MTVN-HCM0009|**Khanh Nguyen**|Nguyễn Tuấn Duy Khánh|Design Team Leader|
-|MTVN-HCM0010|**Vu Pham**|Phạm Lê Đăng Vũ|Design Team Leader|
-|MTVN-HCM0011|**Tinh Tran**|Trần Thanh Tịnh|Experienced Designer|
-|MTVN-HCM0012|**Toan Pham**|Phạm Công Toàn|Senior Designer|
-|MTVN-HCM0013|**Vinh Pham**|Phạm Hữu Vinh|Senior Designer|
-|MTVN-HCM0014|**Mai Chau**|Châu Trúc Mai|Senior Administration|
-|MTVN-HCM0023|**Hau Nguyen**|Nguyễn Trung Hậu|Estimator/ Designer|
-|MTVN-HCM0024|**Tu Le**|Lê Minh Tú|Estimator/ Designer|
-|MTVN0013|**Hung Nguyen**|Nguyễn Kim Hùng|Team Leader|
-|MTVN0018|**Hoc Nguyen**|Nguyễn Văn Học|Team Leader|
-|MTVN0026|**Uyen Le**|Lê Nhã Uyên|Estimator/ Designer|
-|MTVN0030|**Khanh Trinh**|Trịnh Hồng Khánh|SmartFrame Engineer|
-|MTVN0044|**Hoa Nguyen**|Nguyễn Thị Hoà|Administrator|
-|MTVN0045|**Thanh Doan**|Đoàn Sinh Thành|Estimator/ Designer|
-|MTVN0053|**Ngan Tran**|Trần Nhật Đan Ngân|Estimator/ Designer|
-|MTVN0095|**Phuoc Le**|Lê Quang Phước|Estimator/ Designer|
-|MTVN0096|**Thao2 Le**|Lê Thái Thảo|Administrator|
+|-|-|
+|MTVN-HCM0008|**Hao Pham Thai**|
+|MTVN-HCM0009|**Khanh Nguyen**|
+|MTVN-HCM0010|**Vu Pham**|
+|MTVN-HCM0011|**Tinh Tran**|
+|MTVN-HCM0012|**Toan Pham**|
+|MTVN-HCM0013|**Vinh Pham**|
+|MTVN-HCM0014|**Mai Chau**|
+|MTVN-HCM0023|**Hau Nguyen**|
+|MTVN-HCM0024|**Tu Le**|
+|MTVN0013|**Hung Nguyen**|
+|MTVN0018|**Hoc Nguyen**|
+|MTVN0026|**Uyen Le**|
+|MTVN0030|**Khanh Trinh**|
+|MTVN0045|**Thanh Doan**|
+|MTVN0053|**Ngan Tran**|
+|MTVN0095|**Phuoc Le**|
+|MTVN0096|**Thao2 Le**|
 
 
 
