@@ -22,7 +22,7 @@
 |`MTVN-HCM0012`|Phạm Công Toàn|**Toan Pham**|03/04/1999|Male|Ho Chi Minh|Toan.Pham@myteamsolution.com.vn|01/07/2025|Active|Senior Designer|Excel, MS Office|
 |`MTVN-HCM0013`|Phạm Hữu Vinh|**Vinh Pham**|05/07/1997|Male|Ho Chi Minh|Vinh.Pham@myteamsolution.com.vn|01/07/2025|Active|Senior Designer|Excel, MS Office|
 |`MTVN-HCM0014`|Châu Trúc Mai|**Mai Chau**|04/10/1998|Female|Ho Chi Minh|Mai.Chau@myteamsolution.com.vn|01/07/2025|Active|Senior Administration|Excel, MS Office|
-|`MTVN-HCM0016`|Nguyễn Thị Bích|**Bich Nguyen**|18/11/1984|Female|Ho Chi Minh|bich.nguyen@myteamsolution.com.vn|01/07/2025|Active|Logistic Team Leader|Excel, WMS/CRM|
+|`MTVN-HCM0016`|Nguyễn Thị Bích|**Bich Nguyen**|18/11/1984|Female|Ho Chi Minh|bich.nguyen@myteamsolution.com.vn|01/07/2025|InActive|Logistic Team Leader|Excel, WMS/CRM|
 |`MTVN-HCM0017`|Lê Đỗ Tuấn Duy|**Duy Le**|01/10/1986|Male|Ho Chi Minh|DuyL@myteamsolution.com.vn||Resigned|IT Support|Excel, MS Office|
 |`MTVN-HCM0018`|Nguyễn Duy Linh|**Linh2 Nguyen**|27/08/1992|Male|Ho Chi Minh|linh2.nguyen@myteamsolution.com.vn|01/11/2025|Active|Senior Frame and Truss|MiTek 20/20, Pryda, AutoCAD|
 |`MTVN-HCM0019`|Ngô Đặng Hoàng Khang|**Khang Ngo**|29/04/1996|Male|Ho Chi Minh|Khang.Ngo@myteamsolution.com.vn|31/05/2026|Active|Frame \& Truss Estimator/Detailer|MiTek 20/20, Pryda, AutoCAD|
@@ -77,7 +77,7 @@
 |`MTVN0065`|Nguyễn Đức Long|**Long Nguyen**|12/02/2002|Male|Da Nang|long.nguyen@myteamsolution.com.vn|24/01/2025|Active|Full-Stack Developer|Excel, MS Office|
 |`MTVN0066`|Lê Phan Ngọc Huyền|**Huyen Le**|09/03/2002|Female|Da Nang|Huyen.Le@myteamsolution.com.vn|14/02/2025|Active|Logistics Operations Support Officer|Excel, MS Office|
 |`MTVN0067`|Nguyễn Tấn Quân|**Quan Nguyen**|04/07/1999|Male|Da Nang|Quan.Nguyen@myteamsolution.com.vn|05/04/2025|Active|Senior Accountant|Excel, ERP/Accounting Software|
-|`MTVN0069`|Nguyễn Văn Vĩnh Qúy|**Quy Nguyen**|14/12/1994|Male|Da Nang|quy.nguyen@myteamsolution.com.vn|06/04/2025|Inactive|Frame \& Truss Detailer|MiTek 20/20, Pryda, AutoCAD|
+|`MTVN0069`|Nguyễn Văn Vĩnh Qúy|**Quy Nguyen**|14/12/1994|Male|Da Nang|quy.nguyen@myteamsolution.com.vn|06/04/2025|Resigned|Frame \& Truss Detailer|MiTek 20/20, Pryda, AutoCAD|
 |`MTVN0070`|Đoàn Tâm|**Tam Doan**|02/10/1996|Male|Da Nang|tam.doan@myteamsolution.com.vn|05/04/2025|Active|Senior People \& Culture Officer|Excel, PowerBI, HRIS|
 |`MTVN0071`|Võ Thị Khánh Huyền|**Huyen Vo**|15/10/1999|Female|Da Nang|huyen.vo@myteamsolution.com.vn|04/07/2025|Active|Account Officer|Excel, ERP/Accounting Software|
 |`MTVN0073`|Lê Thị Thu Thủy|**Thuy Le**|13/08/2000|Female|Da Nang|thuy.le@myteamsolution.com.vn|18/07/2025|Active|Frame \& Truss Detailer|MiTek, AutoCAD|
